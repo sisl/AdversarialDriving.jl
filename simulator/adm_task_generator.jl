@@ -1,9 +1,9 @@
 include("TIDM.jl")
-include("T_intersection_setup.jl")
-include("adversarial_pomdp.jl")
+include("generate_roadway.jl")
+include("adm_pomdp.jl")
 
-function generate_ADM_POMDP()
-    roadway, intersection_enter_loc, intersection_exit_loc, goals, should_blink = generate_T_intersection()
+function generate_ADM_POMDP(; dt = 0.1, T=10)
+    roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy = generate_T_intersection()
     scene = BlinkerScene()
 
     # Construct the vehicles for the scene
@@ -15,24 +15,25 @@ function generate_ADM_POMDP()
 
     # Construct Models for non-ego actors (controlled by the Learner)
     models = Dict{Int, DriverModel}()
-    template = generate_TIDM_AST(intersection_enter_loc, intersection_exit_loc, goals, should_blink)
-    models[1] = gen_TIDM_AST(template, 0.5, 10)
-    models[2] = gen_TIDM_AST(template, 0.5, 10)
-    models[3] = gen_TIDM_AST(template, 0.5, 10)
-    models[4] = gen_TIDM_AST(template, 0.5, 10)
+    template = generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
+    models[1] = generate_TIDM_AST(template, 0.5, 10)
+    models[2] = generate_TIDM_AST(template, 0.5, 10)
+    models[3] = generate_TIDM_AST(template, 0.5, 10)
+    models[4] = generate_TIDM_AST(template, 0.5, 10)
 
     # Construct the parameters of the ego vehicle policy
     egoid = 5
     models[egoid] = TIDM(template)
-    models[egoid].foce_action = false
+    models[egoid].force_action = false
     models[egoid].idm = IntelligentDriverModel() # TODO: Add stochacity to the model
 
     # Simulation timestepping
-    timestep = 0.1
-    t_end = 10
+    timestep = dt
+    t_end = T
 
     AdversarialADM(length(scene), models, roadway, egoid, timestep, t_end, scene)
 end
 
 # Sample a fixed number of ADM tasks (in the form of POMDPs)
-sample_ADM_POMDPs(n_tasks) = [generate_ADM_POMDP() for i in 1:n_tasks]
+sample_ADM_POMDPs(n_tasks; dt = 0.1, T=10) = [generate_ADM_POMDP(dt=dt, T=T) for i in 1:n_tasks]
+

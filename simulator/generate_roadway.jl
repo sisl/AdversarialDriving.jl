@@ -104,7 +104,7 @@ function generate_T_intersection(; LP = VecE2(-50,0), RP = VecE2(50,0), BP = Vec
         6 => true,
         )
 
-    return roadway, intersection_enter_loc, intersection_exit_loc, goals, should_blink
+    return roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy
 end
 
 

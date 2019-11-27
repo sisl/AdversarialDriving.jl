@@ -103,23 +103,25 @@ end
     # The members below here are for control of AST
     force_action::Bool = false # Whether or not we should use the stored actions
     da_force::Float64 = 0. # The acceleration to apply
-    goal_force::Int64 = false # Whether to toggle a goal
+    goal_force::Int64 = 0 # Whether to toggle a goal
     blinker_force::Bool = false # Whether to toggle the turn signal
 
     # Describes the intersection and rules of the road
-    yields_way::Dict{Int, Vector{Int}} = Dict() # Lane priorities
-    intersection_enter_loc::Dict{Int, VecSE2} = Dict() # Entry location of intersection
-    intersection_exit_loc::Dict{Int, VecSE2} = Dict()  # Exit location of intersection
+    yields_way::Dict{Int64, Vector{Int64}} = Dict() # Lane priorities
+    intersection_enter_loc::Dict{Int64, VecSE2} = Dict() # Entry location of intersection
+    intersection_exit_loc::Dict{Int64, VecSE2} = Dict()  # Exit location of intersection
     goals::Dict{Int64, Vector{Int64}} = Dict() # Possible goals of each lane
-    should_blink::Dict{Int64, Array{Int}} = Dict()  # Wether or not the blinker should be on
+    should_blink::Dict{Int64, Bool} = Dict()  # Wether or not the blinker should be on
 end
 
 # Easy generation function for getting a driving that is controllable by AST
-function generate_TIDM_AST(intersection_enter_loc, intersection_exit_loc, goals, should_blink)
+function generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
+
     TIDM(   force_action = true,
+            yields_way = yields_way,
             intersection_enter_loc = intersection_enter_loc,
             intersection_exit_loc = intersection_exit_loc,
-            goals = goals
+            goals = goals,
             should_blink = should_blink,
             )
 end
@@ -129,9 +131,10 @@ function generate_TIDM_AST(template::TIDM, p_wrong_signal, σ2a)
     TIDM(   p_wrong_signal = p_wrong_signal,
             da_dist = Normal(0,σ2a),
             force_action = template.force_action,
+            yields_way = template.yields_way,
             intersection_enter_loc = template.intersection_enter_loc,
             intersection_exit_loc = template.intersection_exit_loc,
-            goals = template.goals
+            goals = template.goals,
             should_blink = template.should_blink,
             )
 end
@@ -141,7 +144,10 @@ function get_actions_logpd(model::TIDM, action::LaneFollowingAccelBlinker)
     a_pd = logpdf(model.da_dist, action.da)
     goal_pm = logpdf(model.goal_dist, action.laneid)
     blinker_pm = logpdf(model.blinker_dist, action.blinker)
-    a_pd + goal_pm + blinker_pm
+    println("a: ", a_pd, " goal: ", goal_pm, " blinker: ", blinker_pm)
+    tot = a_pd + goal_pm + blinker_pm
+    @assert isfinite(tot)
+    tot
 end
 
 # Gets a random action from the model, ignoring the force flag
@@ -174,7 +180,7 @@ function lane_belief(veh::BlinkerVehicle, model::TIDM, roadway::Roadway)
         pl = possible_lanes[findfirst(allowed_lanes)]
     end
 
-    blinker_match = [veh.state.blinker == should_blink[l] for l in possible_lanes]
+    blinker_match = [veh.state.blinker == model.should_blink[l] for l in possible_lanes]
     if findfirst(blinker_match) != nothing
         return possible_lanes[findfirst(blinker_match)]
     else

@@ -13,7 +13,7 @@ lane_right = Dict(
     6 => true
     )
 
-function plot_scene(scene, models; egoid = nothing)
+function plot_scene(scene, models, roadway; egoid = nothing)
     car_colors = Dict{Int, Colorant}()
     cam = FitToContentCamera(.1)
     overlays = SceneOverlay[]
@@ -31,10 +31,10 @@ function plot_scene(scene, models; egoid = nothing)
     render(scene, roadway, overlays, cam=cam, car_colors = car_colors)
 end
 
-function make_video(scenes, models; egoid = nothing)
+function make_video(scenes, models, roadway; egoid = nothing)
     # interactive visualization
     @manipulate for frame_index in 1 : length(scenes)
-        plot_scene(scenes[frame_index], models, egoid=egoid)
+        plot_scene(scenes[frame_index], models, roadway, egoid=egoid)
     end
 end
 
