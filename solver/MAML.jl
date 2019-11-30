@@ -39,12 +39,20 @@ end
 clip(val, low, high) = min(max(val, low), high)
 
 # TODO: Also recomputing log probabilities here without reuse
-function outer_loss(batch, old_policy, new_policy, baseline_weights, γ, λ)
+function outer_loss(batch, old_policy, new_policy, baseline_weights, γ, λ, ϵ = 0.2)
     advantages = gae(batch, baseline_weights, γ, λ)
+    if any(isinf.(advantages))
+        println("found inf advantages")
+    end
 
     old_log_probs = log_prob(batch.actions, forward_nn(old_policy, batch.observations)...)
     new_log_probs = log_prob(batch.actions, forward_nn(new_policy, batch.observations)...)
-    ratio = exp(new_log_probs .- old_log_probs)
+    ratio = exp.(new_log_probs .- old_log_probs)
+
+    if any(isinf.(ratio))
+        println("found inf ratio")
+        println("ratio: ", clip.(ratio, 1-ϵ, 1+ϵ))
+    end
 
     mean(min.(ratio.*advantages, clip.(ratio, 1-ϵ, 1+ϵ).*advantages))
 end

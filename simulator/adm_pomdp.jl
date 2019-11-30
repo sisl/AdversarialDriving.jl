@@ -31,14 +31,14 @@ end
 
 # Converts the array of actions to LaneFollowingAccelBlinker actions per vehicle
 function to_actions(pomdp::AdversarialADM, action_vec::Array{Float64})
-    actions = fill(LaneFollowingAccelBlinker(0.,0.,0,false), pomdp.num_vehicles)
+    actions = fill(LaneFollowingAccelBlinker(0.,0.,false,false), pomdp.num_vehicles)
     for i in 1:pomdp.num_vehicles
         j = (i-1)*ACT_PER_VEH + 1
         da = action_vec[j]
-        laneid = max(0, Int64(round(action_vec[j+1])))
-        blinker = action_vec[j+2] > 0.5
+        toggle_goal = action_vec[j+1] > 0.
+        toggle_blinker = action_vec[j+2] > 0.
         # Note that the acceleration is set to 0 and will not be used
-        actions[i] = LaneFollowingAccelBlinker(0, da, laneid, blinker)
+        actions[i] = LaneFollowingAccelBlinker(0, da, toggle_goal, toggle_blinker)
     end
     actions
 end
@@ -48,8 +48,8 @@ function to_vec(actions::Vector{LaneFollowingAccelBlinker})
     for i=1:length(actions)
         j = (i-1)*ACT_PER_VEH + 1
         res[j] = actions[i].da
-        res[j+1] = actions[i].laneid
-        res[j+2] = actions[i].blinker
+        res[j+1] = actions[i].toggle_goal ? 1. : -1.
+        res[j+2] = actions[i].toggle_blinker ? 1. : -1.
     end
     res
 end
@@ -103,8 +103,8 @@ function step_scene(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64}, acti
         # Set the forced actions of the model
         action = actions[veh.id]
         pomdp.models[veh.id].da_force = action.da
-        pomdp.models[veh.id].goal_force = action.laneid
-        pomdp.models[veh.id].blinker_force = action.blinker
+        pomdp.models[veh.id].toggle_goal_force = action.toggle_goal
+        pomdp.models[veh.id].toggle_blinker_force = action.toggle_blinker
 
         a = rand(rng, pomdp.models[veh.id])
         vs_p = propagate(veh, a, pomdp.roadway, pomdp.dt)
@@ -156,7 +156,7 @@ end
 function nominal_action(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64})
     actions = Array{LaneFollowingAccelBlinker}(undef, pomdp.num_vehicles)
     for (i,veh) in enumerate(get_scene(s))
-        actions[veh.id] = LaneFollowingAccelBlinker(0., 0., laneid(veh), veh.state.blinker)
+        actions[veh.id] = LaneFollowingAccelBlinker(0., 0., false, false)
     end
     to_vec(actions)
 end

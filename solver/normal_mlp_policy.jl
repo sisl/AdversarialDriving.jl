@@ -1,5 +1,5 @@
 using Flux
-using Flux: mse, glorot_normal, param
+using Flux: mse, glorot_normal, param, Params
 using Flux.Tracker: update!
 using Distributions
 using Random

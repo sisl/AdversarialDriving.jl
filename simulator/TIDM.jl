@@ -12,8 +12,9 @@ using Random
 
 # Define a new state for vehicles with blinkers
 struct BlinkerState
-    veh_state::VehicleState
-    blinker::Bool
+    veh_state::VehicleState # position and velocity
+    blinker::Bool # Whether or not the blinker is on
+    goals::Vector{Int} # The list of possible goals that this vehicle can have
 end
 
 AutomotiveDrivingModels.posf(s::BlinkerState) = posf(s.veh_state)
@@ -23,9 +24,10 @@ vel(s::BlinkerState) = s.veh_state.v
 # Define a new Vehicle with the BlinkerVehicle
 BlinkerVehicle = Entity{BlinkerState, VehicleDef, Int64}
 
-function BV(posG::VecSE2, v::Float64, goal_lane::Int, blinker, id, roadway::Roadway)
+# Constructor for making a blinker vehicle
+function BV(posG::VecSE2, v::Float64, goals::Vector{Int}, goal_lane::Int, blinker, id, roadway::Roadway)
     vs = VehicleState(posG, roadway, v)
-    bv = BlinkerVehicle(BlinkerState(vs, blinker), VehicleDef(), id)
+    bv = BlinkerVehicle(BlinkerState(vs, blinker, goals), VehicleDef(), id)
     set_veh_lane(bv, goal_lane, roadway)
 end
 
@@ -58,15 +60,20 @@ AutoViz.render!(r::RenderModel, veh::BlinkerVehicle, c::Colorant) = render!(r, V
 struct LaneFollowingAccelBlinker
     a::Float64
     da::Float64
-    laneid::Int
-    blinker::Bool
+    toggle_goal::Bool
+    toggle_blinker::Bool
 end
 
 # The function that propogates the new action
 function AutomotiveDrivingModels.propagate(veh::BlinkerVehicle, action::LaneFollowingAccelBlinker, roadway::Roadway, Δt::Float64)
-    # Set the vehicle lane
-    if action.laneid != 0 && can_have_goal(veh, action.laneid, roadway)
-        veh = set_veh_lane(veh, action.laneid, roadway)
+    # set the new goal
+    if action.toggle_goal
+        curr_index = findfirst(veh.state.goals .== laneid(veh))
+        @assert !isnothing(curr_index)
+        new_goal = veh.state.goals[(curr_index + 1) % length(veh.state.goals) + 1]
+        if can_have_goal(veh, new_goal, roadway)
+            veh = set_veh_lane(veh, new_goal, roadway)
+        end
     end
 
     # Update the kinematics of the vehicle (don't allow v < 0)
@@ -80,7 +87,8 @@ function AutomotiveDrivingModels.propagate(veh::BlinkerVehicle, action::LaneFoll
     posF = Frenet(roadind, roadway, t=posf(veh.state).t, ϕ=posf(veh.state).ϕ)
 
     # Set the blinker state and return
-    BlinkerState(VehicleState(posG, posF, v₂), action.blinker)
+    new_blink = action.toggle_blinker ? !veh.state.blinker : veh.state.blinker
+    BlinkerState(VehicleState(posG, posF, v₂), new_blink, veh.state.goals)
 end
 
 
@@ -94,17 +102,15 @@ end
 
     # Defines the stochastic actions of the agents
     ttc_threshold = 5 # threshold through intersection
-    p_change_goal = 1e-4 # Probability of changing goal at a given timestep
-    p_wrong_signal = 1e-4 # Probability of having the incorrect signal on
     da_dist::Normal = Normal(0,1)# Distributions over acc
-    goal_dist::Categorical = Categorical(6) # Distribution over changing goals
-    blinker_dist::Bernoulli = Bernoulli(0) # Distribution over toggling signal
+    toggle_goal_dist::Bernoulli = Bernoulli(1e-14) # Distribution over changing goals
+    toggle_blinker_dist::Bernoulli = Bernoulli(1e-14) # Distribution over toggling signal
 
     # The members below here are for control of AST
     force_action::Bool = false # Whether or not we should use the stored actions
     da_force::Float64 = 0. # The acceleration to apply
-    goal_force::Int64 = 0 # Whether to toggle a goal
-    blinker_force::Bool = false # Whether to toggle the turn signal
+    toggle_goal_force::Bool = false # Whether to toggle a goal
+    toggle_blinker_force::Bool = false # Whether to toggle the turn signal
 
     # Describes the intersection and rules of the road
     yields_way::Dict{Int64, Vector{Int64}} = Dict() # Lane priorities
@@ -116,7 +122,6 @@ end
 
 # Easy generation function for getting a driving that is controllable by AST
 function generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
-
     TIDM(   force_action = true,
             yields_way = yields_way,
             intersection_enter_loc = intersection_enter_loc,
@@ -127,9 +132,11 @@ function generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit
 end
 
 # Make a copy of an existing model, while replacing the id, and probabilities
-function generate_TIDM_AST(template::TIDM, p_wrong_signal, σ2a)
-    TIDM(   p_wrong_signal = p_wrong_signal,
+function generate_TIDM_AST(template::TIDM, p_toggle_blinker, p_toggle_goal, σ2a)
+    TIDM(
             da_dist = Normal(0,σ2a),
+            toggle_goal_dist = Bernoulli(p_toggle_goal),
+            toggle_blinker_dist = Bernoulli(p_toggle_blinker),
             force_action = template.force_action,
             yields_way = template.yields_way,
             intersection_enter_loc = template.intersection_enter_loc,
@@ -142,9 +149,8 @@ end
 # Get the probability density of the specified action
 function get_actions_logpd(model::TIDM, action::LaneFollowingAccelBlinker)
     a_pd = logpdf(model.da_dist, action.da)
-    goal_pm = logpdf(model.goal_dist, action.laneid)
-    blinker_pm = logpdf(model.blinker_dist, action.blinker)
-    println("a: ", a_pd, " goal: ", goal_pm, " blinker: ", blinker_pm)
+    goal_pm = logpdf(model.toggle_goal_dist, action.toggle_goal)
+    blinker_pm = logpdf(model.toggle_blinker_dist, action.toggle_blinker)
     tot = a_pd + goal_pm + blinker_pm
     @assert isfinite(tot)
     tot
@@ -153,15 +159,15 @@ end
 # Gets a random action from the model, ignoring the force flag
 function random_action(model::TIDM, rng::AbstractRNG = Random.GLOBAL_RNG)
     da = rand(rng, model.da_dist)
-    g = rand(rng, model.goal_dist)
-    b = rand(rng, model.blinker_dist)
-    LaneFollowingAccelBlinker(model.idm.a, da, g, b)
+    toggle_goal = rand(rng, model.toggle_goal_dist)
+    toggle_blinker = rand(rng, model.toggle_blinker_dist)
+    LaneFollowingAccelBlinker(model.idm.a, da, toggle_goal, toggle_blinker)
 end
 
 # Sample an action from TIDM model
 function Base.rand(rng::AbstractRNG, model::TIDM)
     if model.force_action # Use the forced actions
-        LaneFollowingAccelBlinker(model.idm.a, model.da_force, model.goal_force, model.blinker_force)
+        LaneFollowingAccelBlinker(model.idm.a, model.da_force, model.toggle_goal_force, model.toggle_blinker_force)
     else # sample actions from the distributions
         random_action(model, rng)
     end
@@ -194,24 +200,6 @@ function AutomotiveDrivingModels.observe!(model::TIDM, scene::BlinkerScene, road
     vehicle_index = findfirst(egoid, scene)
     ego = scene[vehicle_index]
     li = laneid(ego)
-
-    # Update distributions
-    goal_vec = zeros(6)
-    ego_goals = model.goals[li]
-    @assert li in ego_goals
-    if length(ego_goals) == 1
-        goal_vec[ego_goals[1]] = 1
-    else
-        p_other = model.p_change_goal / (length(ego_goals) - 1)
-        p_goal = 1 - model.p_change_goal
-        goal_vec[li] = p_goal
-        goal_vec[ego_goals[ego_goals .!= li]] .= p_other
-    end
-    model.goal_dist = Categorical(goal_vec)
-
-    p_blink = (1-model.p_wrong_signal)*model.should_blink[li] + model.p_wrong_signal*(!model.should_blink[li])
-    model.blinker_dist = Bernoulli(p_blink) # Distribution over signal
-
 
     # Compute ego headway to intersection and time to cross
     int_headway = distance_to_point(ego, roadway, model.intersection_enter_loc[li])
@@ -276,7 +264,7 @@ laneid(veh::BlinkerVehicle) = posf(veh.state).roadind.tag.segment
 function set_veh_lane(veh::BlinkerVehicle, laneid::Int, roadway::Roadway)
     desired_lane = roadway[laneid].lanes[1]
     posF = Frenet(posg(veh.state), desired_lane, roadway)
-    BlinkerVehicle(BlinkerState(VehicleState(posF, roadway, vel(veh.state)), veh.state.blinker), veh.def, veh.id)
+    BlinkerVehicle(BlinkerState(VehicleState(posF, roadway, vel(veh.state)), veh.state.blinker, veh.state.goals), veh.def, veh.id)
 end
 
 # Check whether a car is allowed to switch goals (requires posF.t to be small)

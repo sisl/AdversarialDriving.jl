@@ -37,7 +37,7 @@ as = fill(LaneFollowingAccelBlinker(0,0,0,false), pomdp.num_vehicles)
 @test to_actions(pomdp, zeros(a_dim(pomdp))) == as
 
 # Check the conversion backwards
-@test to_vec(as) == zeros(a_dim(pomdp))
+@test to_vec(as) == vcat([[0., -1., -1.] for i=1:pomdp.num_vehicles]...)
 
 # Observe the entire state
 svec = observe_state(pomdp, s0)
@@ -52,9 +52,9 @@ svec = observe_state(pomdp, s0)
 na = nominal_action(pomdp, s0)
 avec = to_actions(pomdp, na)
 for (i,veh) in enumerate(pomdp.initial_scene)
-    @test avec[veh.id].blinker == veh.state.blinker
+    @test avec[veh.id].toggle_blinker == false
     @test avec[veh.id].da == 0.
-    @test avec[veh.id].laneid == laneid(veh)
+    @test avec[veh.id].toggle_blinker == false
 end
 
 # Generate a new state, observation and reward from that action
