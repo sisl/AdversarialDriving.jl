@@ -67,11 +67,24 @@ function sample_batch(task, policy, N_eps; rng::AbstractRNG = Random.GLOBAL_RNG)
     batch = Batch(max_steps(task)*N_eps, o_dim(task), a_dim(task))
     for i = 1:N_eps
         s0 = initialstate(task)
-        obs, as, rs = policy_rollout(pomdp, (obs) -> sample_action(policy, obs, rng=rng), s0)
-        rets = returns(rs, discount(pomdp))
-        times = range(0, length=length(rs), step=task.dt)
+        obs, as, rs = policy_rollout(task, (obs) -> sample_action(policy, obs, rng=rng), s0)
+
+        rets = returns(rs, discount(task))
+        times = range(0, length=length(rs), step=dt(task))
         append_ep!(batch, obs, as, rs, rets, times)
     end
     trim(batch)
+end
+
+# episode returns
+function episode_returns(task, policy, N_eps; rng::AbstractRNG = Random.GLOBAL_RNG)
+    tot_return = 0
+    for i = 1:N_eps
+        s0 = initialstate(task)
+        obs, as, rs = policy_rollout(task, (obs) -> sample_action(policy, obs, rng=rng), s0)
+        rets = returns(rs, discount(task))
+        tot_return += rets[1]
+    end
+    tot_return / N_eps
 end
 

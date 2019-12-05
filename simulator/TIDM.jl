@@ -132,7 +132,7 @@ function generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit
 end
 
 # Make a copy of an existing model, while replacing the id, and probabilities
-function generate_TIDM_AST(template::TIDM, p_toggle_blinker, p_toggle_goal, σ2a)
+function generate_TIDM_AST(template::TIDM; p_toggle_blinker, p_toggle_goal, σ2a)
     TIDM(
             da_dist = Normal(0,σ2a),
             toggle_goal_dist = Bernoulli(p_toggle_goal),
@@ -190,7 +190,7 @@ function lane_belief(veh::BlinkerVehicle, model::TIDM, roadway::Roadway)
     if findfirst(blinker_match) != nothing
         return possible_lanes[findfirst(blinker_match)]
     else
-        return rand(possible_lanes)
+        return possible_lanes[1]
     end
 end
 

@@ -11,16 +11,19 @@ policy = init_policy([input_size,10,output_size])
 
 # Sample data from a task
 batch = sample_batch(t, policy, 3)
+
+
 baseline_weights = fit(batch, 1000.)
 
 inner_loss(batch, policy, baseline_weights, 1., 1.)
 
-new_policy = adapt(batch, policy, 1e-6, baseline_weights, 1., λ)
-outer_loss(batch, policy, new_policy, baseline_weights, γ, λ)
+new_policy = adapt(batch, policy, 1e-6, baseline_weights, 1., λ, false)
+new_policy = adapt(batch, policy, 1e-6, baseline_weights, 1., λ, true)
 
 
-task_batch_loss(policy, sample_ADM_POMDPs, 4, 10, 3, 1e-6, 0.5, 1.)
+maml_task_batch_loss(policy = policy, task_sampler = sample_ADM_POMDPs, N_tasks = 5, N_eps_train = 10, N_eps_test = 3, inner_lr = 1e-6, λ = 0.5, baseline_reg_coeff = 1.)
 
-@test clip(10, 11, 100) == 11
-@test clip(10, 1, 9) == 9
-@test clip(10, 1, 11) == 10
+@test clamp(10, 11, 100) == 11
+@test clamp(10, 1, 9) == 9
+@test clamp(10, 1, 11) == 10
+

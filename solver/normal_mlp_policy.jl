@@ -1,17 +1,15 @@
-using Flux
 using Flux: mse, glorot_normal, param, Params
-using Flux.Tracker: update!
 using Distributions
 using Random
 
-# Converts a dictionary of parameters to Params
-function to_params(weights)
-    params = Params()
-    for (k,v) in weights
-        push!(params, v)
-    end
-    return params
+@with_kw mutable struct MLPPolicy
+    weights::Dict = Dict()
+    input_mean::Vector{Float64} = [0.]
+    input_std::Vector{Float64} = [1.]
 end
+
+# Converts a dictionary of parameters to Params
+to_params(policy) = Params(values(policy.weights))
 
 # Returns the string used to index the weights
 W(i) = string("W", i)
@@ -19,35 +17,34 @@ b(i) = string("b", i)
 
 # Initialize the policy with the appropriate number of layers/sizes
 function init_policy(layers; init_W = glorot_normal, init_b = zeros, σ_init = ones)
-    weights = Dict()
+    π = MLPPolicy()
 
     # Add the mlp weights
     for l in 1:length(layers)-1
         in, out = layers[l], layers[l+1]
-        weights[W(l)] = Flux.param(init_W(in, out))
-        weights[b(l)] = Flux.param(init_b(1,out))
+        π.weights[W(l)] = param(init_W(in, out))
+        π.weights[b(l)] = param(init_b(1,out))
     end
 
     # Add the variance weights
     outputsize = layers[end]
-    weights["σ2"] = Flux.param(σ_init(1,outputsize))
-
-    weights
+    π.weights["σ2"] = param(σ_init(1,outputsize))
+    π
 end
 
 # Gets the number of layers in the mlp
-num_layers(weights) = Int64((length(weights) - 1) / 2)
+num_layers(π) = Int64((length(π.weights) - 1) / 2)
 
 # Define the neural network forward to compute mu
-function forward_nn(weights, input)
-    N = num_layers(weights)
-    x = input
+function forward_nn(π, input)
+    N = num_layers(π)
+    x = (input .- π.input_mean ) ./ π.input_std
     for i=1:N-1
-        x = x*weights[W(i)] .+ weights[b(i)]
+        x = x*π.weights[W(i)] .+ π.weights[b(i)]
         x = tanh.(x)
     end
-    μ = x*weights[W(N)] .+ weights[b(N)]
-    μ, weights["σ2"]
+    μ = x*π.weights[W(N)] .+ π.weights[b(N)]
+    μ, π.weights["σ2"]
 end
 
 # Computes the log probability of observations given a mean and a variance
@@ -56,8 +53,8 @@ function log_prob(a, μ, σ2)
 end
 
 # Take a sample action from the network given an observation
-function sample_action(weights, obs; rng::AbstractRNG = Random.GLOBAL_RNG)
-    μ, σ2 = forward_nn(weights, obs') # compute the output of the network
+function sample_action(π, obs; rng::AbstractRNG = Random.GLOBAL_RNG)
+    μ, σ2 = forward_nn(π, obs') # compute the output of the network
     rand(rng, MvNormal(dropdims(μ.data, dims=1), dropdims(σ2.data, dims=1))) # Sample a random action from mean and variance
 end
 

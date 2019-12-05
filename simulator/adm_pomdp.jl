@@ -16,6 +16,7 @@ end
 o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH
 a_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*ACT_PER_VEH
 max_steps(pomdp::AdversarialADM) = Int64(round(pomdp.T / pomdp.dt, RoundUp)) + 1
+dt(pomdp::AdversarialADM) = pomdp.dt
 
 # Get the scene from the POMDP state
 get_scene(s::Tuple{BlinkerScene, Float64}) = s[1]
@@ -76,7 +77,9 @@ function reward(pomdp::AdversarialADM, a::Array{LaneFollowingAccelBlinker}, sp::
     reward = 0
     for (ind,veh) in enumerate(get_scene(sp))
         i = veh.id
-        reward += get_actions_logpd(pomdp.models[i], a[i])
+        if i != pomdp.egoid
+            reward += get_actions_logpd(pomdp.models[i], a[i])
+        end
     end
     if length(get_scene(sp)) > 0
         reward = reward / length(get_scene(sp))
@@ -86,9 +89,9 @@ function reward(pomdp::AdversarialADM, a::Array{LaneFollowingAccelBlinker}, sp::
     if isterm && !iscol
         reward = -10000
     end
-    if iscol
-        println("found a collision!")
-    end
+    # if iscol
+    #     println("found a collision!")
+    # end
     reward
 end
 
@@ -162,10 +165,10 @@ function nominal_action(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64})
 end
 
 # compiles a set of random actions
-function random_action(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64})
+function random_action(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64}, rng::AbstractRNG = Random.GLOBAL_RNG)
     actions = Array{LaneFollowingAccelBlinker}(undef, pomdp.num_vehicles)
     for (i,veh) in enumerate(get_scene(s))
-        actions[veh.id] = random_action(pomdp.models[veh.id])
+        actions[veh.id] = random_action(pomdp.models[veh.id], rng)
     end
     to_vec(actions)
 end
@@ -200,11 +203,11 @@ function policy_rollout(pomdp::AdversarialADM, policy, s0; save_scenes = false)
     end
 end
 
-function mcts_rollout(pomdp::AdversarialADM, s, depth = 0)
+function mcts_rollout(pomdp::AdversarialADM, s, depth = 0, rng::AbstractRNG = Random.GLOBAL_RNG)
     tot_r = 0
     mul = 1
     while !isterminal(pomdp, s)
-        actions = random_action(pomdp, s)
+        actions = random_action(pomdp, s, rng)
         s, o, r = gen(pomdp, s, actions)
         tot_r += r*mul
         mul *= discount(pomdp)

@@ -17,14 +17,14 @@ function generate_ADM_POMDP(; dt = 0.1, T=10, rng = Random.GLOBAL_RNG)
     # Construct Models for non-ego actors (controlled by the Learner)
     models = Dict{Int, DriverModel}()
     template = generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
-    models[1] = generate_TIDM_AST(template, 0.5, 0.5, 10)
-    models[2] = generate_TIDM_AST(template, 0.5, 0.5, 10)
-    models[3] = generate_TIDM_AST(template, 0.5, 0.5, 10)
-    models[4] = generate_TIDM_AST(template, 0.5, 0.5, 10)
+    models[1] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = 1)
+    models[2] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = 1)
+    models[3] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = 1)
+    models[4] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = 1)
 
     # Construct the parameters of the ego vehicle policy
     egoid = 5
-    models[egoid] = TIDM(template)
+    models[egoid] = generate_TIDM_AST(template, p_toggle_blinker = 0., p_toggle_goal = 0., σ2a = 0.)
     models[egoid].force_action = false
 
     headway_t = max(0.5, rand(rng, Normal(1.5, 0.5))) # desired time headway [s]
@@ -32,7 +32,6 @@ function generate_ADM_POMDP(; dt = 0.1, T=10, rng = Random.GLOBAL_RNG)
     s_min = max(1.0, rand(rng, Normal(5.0, 1.0))) # minimum acceptable gap [m]
     a_max = max(2.0, rand(rng, Normal(3.0, 1.0))) # maximum acceleration ability [m/s²]
 
-    println("This ego car model is charactersized by: headway=", headway_t, " v_des=", v_des, " smin: ", s_min, " a_max: ", a_max)
     models[egoid].idm = IntelligentDriverModel(T = headway_t, v_des = v_des, s_min = s_min, a_max = a_max)
 
     # Simulation timestepping
@@ -43,5 +42,5 @@ function generate_ADM_POMDP(; dt = 0.1, T=10, rng = Random.GLOBAL_RNG)
 end
 
 # Sample a fixed number of ADM tasks (in the form of POMDPs)
-sample_ADM_POMDPs(n_tasks; dt = 0.1, T=10) = [generate_ADM_POMDP(dt=dt, T=T) for i in 1:n_tasks]_t
+sample_ADM_POMDPs(n_tasks; dt = 0.1, T=10) = [generate_ADM_POMDP(dt=dt, T=T) for i in 1:n_tasks]
 

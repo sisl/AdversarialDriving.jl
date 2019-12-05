@@ -1,4 +1,4 @@
-include("simulator/task_generator.jl")
+include("../simulator/task_generator.jl")
 using MCTS
 
 pomdp = generate_POMDP()

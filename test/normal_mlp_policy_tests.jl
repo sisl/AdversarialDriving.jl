@@ -7,15 +7,15 @@ using Test
 
 # Initialize a policy
 p = init_policy([2,10,3], init_W = ones)
-@test haskey(p, "W1") && haskey(p, "W2")
-@test haskey(p, "b1") && haskey(p, "b2")
-@test haskey(p, "σ2")
-@test all(p["W1"] .== 1) && all(p["W2"] .== 1)
-@test all(p["b1"] .== 0) && all(p["b2"] .== 0)
-@test all(p["σ2"] .== 1)
-@test size(p["W1"]) == (2,10) && size(p["W2"]) == (10,3)
-@test size(p["b1"]) == (1,10) && size(p["b2"]) == (1,3)
-@test size(p["σ2"]) == (1,3)
+@test haskey(p.weights, "W1") && haskey(p.weights, "W2")
+@test haskey(p.weights, "b1") && haskey(p.weights, "b2")
+@test haskey(p.weights, "σ2")
+@test all(p.weights["W1"] .== 1) && all(p.weights["W2"] .== 1)
+@test all(p.weights["b1"] .== 0) && all(p.weights["b2"] .== 0)
+@test all(p.weights["σ2"] .== 1)
+@test size(p.weights["W1"]) == (2,10) && size(p.weights["W2"]) == (10,3)
+@test size(p.weights["b1"]) == (1,10) && size(p.weights["b2"]) == (1,3)
+@test size(p.weights["σ2"]) == (1,3)
 
 # Check that we can compute the correct number of layers
 @test num_layers(p) == 2

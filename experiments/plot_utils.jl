@@ -1,4 +1,5 @@
 using Interact
+using Reel
 
 # Strings describing the goal of each lane
 goal_map = Dict(1 => "turn right", 2 =>"straight", 3=>"straight", 4=>"turn left", 5=>"turn left", 6=> "turn right")
@@ -28,13 +29,23 @@ function plot_scene(scene, models, roadway; egoid = nothing)
         push!(overlays, BlinkerOverlay(on = veh.state.blinker, veh = Vehicle(veh),right=lane_right[li]))
         push!(overlays, TextOverlay(pos = veh.state.veh_state.posG + VecE2(-3, 3), text = [ string("id: ", veh.id, ", goal: ", goal_map[li])], color = colorant"black", incameraframe=true))
     end
-    render(scene, roadway, overlays, cam=cam, car_colors = car_colors)
+    render(Scene(scene), roadway, overlays, cam=cam, car_colors = car_colors)
 end
 
-function make_video(scenes, models, roadway; egoid = nothing)
+function make_interact(scenes, models, roadway; egoid = nothing)
     # interactive visualization
     @manipulate for frame_index in 1 : length(scenes)
         plot_scene(scenes[frame_index], models, roadway, egoid=egoid)
     end
+end
+
+function make_video(scenes, models, roadway, filename; egoid = nothing)
+    frames = Frames(MIME("image/png"), fps=10)
+    # interactive visualization
+    for frame_index in 1 : length(scenes)
+        c = plot_scene(scenes[frame_index], models, roadway, egoid=egoid)
+        push!(frames, c)
+    end
+    write(filename, frames)
 end
 

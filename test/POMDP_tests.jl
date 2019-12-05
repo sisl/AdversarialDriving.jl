@@ -17,7 +17,7 @@ pomdp = generate_ADM_POMDP(dt=0.15, T=15)
 @test max_steps(pomdp) == 101
 
 # Confirm initial state
-s0 = initialstate(pomdp)
+s0 = POMDPs.initialstate(pomdp)
 @test s0 == (pomdp.initial_scene, 0.)
 
 # Get the scene and time from the POMDP state
@@ -25,7 +25,7 @@ s0 = initialstate(pomdp)
 @test get_t(s0) == 0.
 
 # Discount is set to 1
-@test discount(pomdp) == 1
+@test POMDPs.discount(pomdp) == 1
 
 # Check conversion of vehicle state to vector
 veh = pomdp.initial_scene[1]
@@ -63,9 +63,13 @@ sp, o, r = gen(pomdp, s0, na)
 random_action(pomdp, s0)
 mcts_rollout(pomdp, s0)
 
+pomdp = generate_ADM_POMDP(dt=0.3, T=13)
 _,_,_,scenes = policy_rollout(pomdp, (o) -> random_action(pomdp, s0), s0, save_scenes = true)
 
 # Uncomment below to get interactive window of previous rollout
-# include("../plot_utils.jl")
-# make_video(scenes, pomdp.models, pomdp.roadway; egoid = pomdp.egoid)
+# include("../experiments/plot_utils.jl")
+# c = plot_scene(get_scene(s0), pomdp.models, pomdp.roadway; egoid = pomdp.egoid)
+# write_to_svg(c, "starting_still.svg")
+
+# make_video(scenes, pomdp.models, pomdp.roadway, "scenario.gif"; egoid = pomdp.egoid)
 
