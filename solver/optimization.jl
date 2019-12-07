@@ -1,3 +1,10 @@
+using Flux
+using Flux.Tracker
+
+function add_entry(d::Dict, key, val)
+    !haskey(d, key) ? (d[key] = [val]) : push!(d[key], val)
+end
+
 # Computes the norm of the gradients
 function grad_norms(grads, params, p=2)
     gnorm = 0
@@ -22,6 +29,7 @@ clipped_grad_norms(grads, params, max_norm, p=2) = min(max_norm, grad_norms(grad
 function update_with_clip!(opt, grads, params, max_norm, p=2)
     scale = clip_norm_scale(grads, params, max_norm, p)
     for p in params
-        update!(opt, p, scale*grads[p])
+        Flux.Tracker.update!(opt, p, scale*grads[p])
     end
 end
+

@@ -3,7 +3,7 @@ include("generate_roadway.jl")
 include("adm_pomdp.jl")
 using Random
 
-function generate_ADM_POMDP(; dt = 0.1, T=10, rng = Random.GLOBAL_RNG)
+function generate_ADM_POMDP(; dt = 0.15, T=10, rng = Random.GLOBAL_RNG)
     roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy = generate_T_intersection()
     scene = BlinkerScene()
 
@@ -43,4 +43,7 @@ end
 
 # Sample a fixed number of ADM tasks (in the form of POMDPs)
 sample_ADM_POMDPs(n_tasks; dt = 0.1, T=10) = [generate_ADM_POMDP(dt=dt, T=T) for i in 1:n_tasks]
+
+# Returns a sampler with the desired timestepping
+gen_ADM_sampler(;dt = 0.1, T=10) = (N) -> sample_ADM_POMDPs(N, dt, T)
 

@@ -1,11 +1,38 @@
 using Flux: mse, glorot_normal, param, Params
 using Distributions
+using LinearAlgebra
 using Random
+include("sampler.jl")
 
 @with_kw mutable struct MLPPolicy
     weights::Dict = Dict()
-    input_mean::Vector{Float64} = [0.]
-    input_std::Vector{Float64} = [1.]
+    input_mean::Array{Float64, 2} = [0.]'
+    input_std::Array{Float64, 2} = [1.]'
+end
+
+function kl_divergence(d0::MvNormal, d1::MvNormal)
+    Σ0 = Matrix(d0.Σ)
+    Σ1 = Matrix(d1.Σ)
+    Σ1_inv = inv(Σ1)
+    dμ = d1.μ .- d0.μ
+    k = length(d0.μ)
+    0.5*(tr(Σ1_inv * Σ0) + dμ' * Σ1_inv * dμ - k + log(det(Σ1) / det(Σ0)))
+end
+
+# Compute the average kl divergence of the two policies π0 and π1
+# Given the set of observations
+function kl_divergence(π0, π1, obs)
+    μ0, Σ0 = forward_nn(π0, obs)
+    μ1, Σ1 = forward_nn(π1, obs)
+
+    N = size(μ0, 1)
+    tot_kl = 0
+    for i=1:N
+        d0 = MvNormal(μ0.data[i,:], Σ0.data[1,:])
+        d1 = MvNormal(μ1.data[i,:], Σ1.data[1,:])
+        tot_kl += kl_divergence(d0, d1)
+    end
+    tot_kl / N
 end
 
 # Converts a dictionary of parameters to Params
@@ -16,7 +43,7 @@ W(i) = string("W", i)
 b(i) = string("b", i)
 
 # Initialize the policy with the appropriate number of layers/sizes
-function init_policy(layers; init_W = glorot_normal, init_b = zeros, σ_init = ones)
+function init_policy(layers ; init_W = glorot_normal, init_b = zeros, σ_init = ones, estimate_obs_stats = false, N_eps = 100)
     π = MLPPolicy()
 
     # Add the mlp weights
@@ -29,6 +56,8 @@ function init_policy(layers; init_W = glorot_normal, init_b = zeros, σ_init = o
     # Add the variance weights
     outputsize = layers[end]
     π.weights["σ2"] = param(σ_init(1,outputsize))
+
+    estimate_obs_stats && ((π.input_mean, π.input_std) = observation_stats(task, π, 100))
     π
 end
 

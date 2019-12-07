@@ -49,3 +49,10 @@ function make_video(scenes, models, roadway, filename; egoid = nothing)
     write(filename, frames)
 end
 
+function plot_training(training_log)
+    p1 = plot(training_log["return"], xlabel="Iterations", ylabel="Return", title = "Average batch return", label="")
+    p2 = plot(training_log["grad_norm"], xlabel="Iterations", ylabel="grad_norm", title = "Clipped Grad norm", label="")
+    p3 = plot(training_log["kl"], xlabel="Iterations", ylabel="KL Divergence", title = "KL Divergence", label="")
+    plot(p1,p2,p3, layout = (3,1))
+end
+

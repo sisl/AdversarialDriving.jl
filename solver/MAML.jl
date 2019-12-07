@@ -1,7 +1,7 @@
 include("ppo.jl")
 using Flux.Tracker: gradient
 
-function maml_task_batch_loss(;policy, task_sampler, N_tasks, N_eps_train, N_eps_test, inner_lr, λ, baseline_reg_coeff, first_order = false, clip_ϵ = 0.2)
+function maml_task_batch_loss(policy, task_sampler, N_tasks, N_eps_train, N_eps_test, inner_lr, λ, baseline_reg_coeff, first_order = false, clip_ϵ = 0.2)
     tasks = task_sampler(N_tasks) # return an array of pomdps
     total_loss = 0
     for task in tasks
@@ -9,8 +9,7 @@ function maml_task_batch_loss(;policy, task_sampler, N_tasks, N_eps_train, N_eps
         batch_before = sample_batch(task, policy, N_eps_train)
         baseline_weights = fit(batch_before, baseline_reg_coeff)
         new_policy = adapt(batch_before, policy, inner_lr, baseline_weights, γ, λ, first_order)
-        error("Havent dealt with observation normalization")
-        total_loss = total_loss + ppo_batch_loss(batch, new_policy, N_eps_train, λ, baseline_reg_coeff, ϵ = clip_ϵ, baseline_weights = baseline_weights)
+        total_loss = total_loss + ppo_batch_loss(task, new_policy, N_eps_test, γ, λ, baseline_reg_coeff, ϵ = clip_ϵ, baseline_weights = baseline_weights)
     end
     total_loss / N_tasks
 end

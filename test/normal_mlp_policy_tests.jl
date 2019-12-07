@@ -34,3 +34,10 @@ logprobs = log_prob(zeros(100,3), μ, σ2)
 as = sample_action(p, [0.,0.])
 @test size(as) == (3,)
 
+# Check that kl divergence runs
+p1 = init_policy([2,10,3])
+p2 = init_policy([2,100,3])
+
+obs = rand(100, 2)
+@test kl_divergence(p1, p2, obs) > 0
+

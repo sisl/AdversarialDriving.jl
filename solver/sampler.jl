@@ -1,5 +1,6 @@
 using Parameters
 using Random
+using LinearAlgebra
 
 # Stores the batch information for a series of episodes for a given task and policy
 mutable struct Batch
@@ -11,6 +12,8 @@ mutable struct Batch
     episode_ends::Array{Bool}
     N::Int64
 end
+
+episode_starts(batch) = [true, batch.episode_ends[1:end-1]...]
 
 # Construct a batch with pre-allocated memory
 function Batch(N_max, o_dim, a_dim)
@@ -77,14 +80,23 @@ function sample_batch(task, policy, N_eps; rng::AbstractRNG = Random.GLOBAL_RNG)
 end
 
 # episode returns
-function episode_returns(task, policy, N_eps; rng::AbstractRNG = Random.GLOBAL_RNG)
-    tot_return = 0
-    for i = 1:N_eps
-        s0 = initialstate(task)
-        obs, as, rs = policy_rollout(task, (obs) -> sample_action(policy, obs, rng=rng), s0)
-        rets = returns(rs, discount(task))
-        tot_return += rets[1]
-    end
-    tot_return / N_eps
+function average_episode_return(task, policy, N_eps; rng::AbstractRNG = Random.GLOBAL_RNG)
+    b = sample_batch(task, policy, N_eps, rng = rng)
+    average_episode_return(b)
+end
+
+function average_episode_return(batch)
+    starts = episode_starts(batch)
+    N_eps = sum(starts)
+    sum(batch.returns[starts]) / N_eps
+end
+
+# Average observations
+function observation_stats(task, policy, N_eps; rng::AbstractRNG = Random.GLOBAL_RNG)
+    batch = sample_batch(task, policy, N_eps, rng = rng)
+    μ = mean(batch.observations, dims=1)
+    σ2 = std(batch.observations, dims=1)
+    σ2[σ2 .== 0] .= 1
+    μ, σ2
 end
 

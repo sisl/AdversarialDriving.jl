@@ -15,15 +15,24 @@ params = to_params(policy)
 
 
 opt = ADAM(0.001, (0.9, 0.999))
-loss() = ppo_batch_loss(env, policy, 125, 1., 0.95, 1.)
+training_log = Dict()
+loss() = ppo_batch_loss(env, policy, 125, 1., 0.95, 1., store_log = true, logger = training_log)
+
 
 N, max_norm = 100, 1.
 for i=1:N
+    old_policy = deepcopy(policy)
+
     grads = gradient(() -> loss(), params)
     update_with_clip!(opt, grads, params, max_norm)
 
-    println("Finished epoch, ", i, " return: ", episode_returns(env, policy, 10), " grad norms: ", clipped_grad_norms(grads, params, max_norm))
+    add_entry(training_log, "kl", kl_divergence(policy, old_policy, training_log["last_obs"]))
+    add_entry(training_log, "grad_norm", clipped_grad_norms(grads, params, max_norm))
+
+    println("Finished epoch, ", i, " return: ", training_log["return"][end], " grad norms: ", training_log["grad_norm"][end])
 end
+
+plot_training(training_log)
 
 i, done, o, tot_r = 1, false, reset!(env), 0
 theta, dtheta = [], []
