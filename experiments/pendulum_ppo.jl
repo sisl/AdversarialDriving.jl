@@ -1,4 +1,5 @@
 include("../simulator/gym_continous.jl")
+include("plot_utils.jl")
 include("../solver/ppo.jl")
 using Flux: ADAM
 using Flux.Tracker: gradient, update!, hook

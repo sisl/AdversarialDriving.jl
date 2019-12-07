@@ -1,4 +1,5 @@
 include("../simulator/adm_task_generator.jl")
+include("plot_utils.jl")
 include("../solver/ppo.jl")
 using Flux: ADAM
 using Flux.Tracker: gradient
@@ -15,7 +16,7 @@ training_log = Dict()
 loss() = ppo_batch_loss(task, policy, 700, 1., 0.95, 1., store_log = true, logger = training_log)
 
 N, max_norm = 300, 1.
-for i=1:1
+for i=1:N
     old_policy = deepcopy(policy)
 
     grads = gradient(() -> loss(), params)
