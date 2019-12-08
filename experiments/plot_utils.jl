@@ -1,5 +1,6 @@
 using Interact
 using Reel
+using AutoViz
 
 # Strings describing the goal of each lane
 goal_map = Dict(1 => "turn right", 2 =>"straight", 3=>"straight", 4=>"turn left", 5=>"turn left", 6=> "turn right")
