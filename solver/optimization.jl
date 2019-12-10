@@ -1,6 +1,71 @@
 using Flux
 using Flux.Tracker
 
+# Generic training loop that applies clipping and stores training info
+function train!(policy, lossfn, N, lr, max_norm, training_log, policy_filename)
+    # Store the return of the policy for later comparison
+    # lossfn(policy)
+    # best_return = training_log["return"][end]
+
+    # Define the optimizer with the desired learning rate
+    opt = ADAM(lr, (0.9, 0.999))
+
+    # Pull out the vector of parameters for Flux
+    params = to_params(policy)
+    for i=1:N
+        # Store the previous policy so that the KL-Divergence can be computed between steps
+        # prev_policy = deepcopy(policy)
+
+        # Compute the gradients and update the parameters
+        grads = gradient(() -> lossfn(policy), params)
+        update_with_clip!(opt, grads, params, max_norm)
+
+        # Store relevant metrics for training (kl divergence and magnitude of clipped gradients)
+        # add_entry(training_log, "kl", kl_divergence(policy, prev_policy, training_log["last_obs"]))
+        # add_entry(training_log, "grad_norm", clipped_grad_norms(grads, params, max_norm))
+        # add_entry(training_log, "lr", lr)
+
+        # Write the best policy to disk
+        # if training_log["return"][end] > best_return
+            # println("Saving new best policy policy!")
+            # best_return = training_log["return"][end]
+            # save_policy(policy_filename, policy)
+        # end
+
+        println("Finished epoch, ", i, " return: ", training_log["return"][end])#, " grad norms: ", training_log["grad_norm"][end])
+    end
+end
+
+# Training loop
+function train_with_restarts(policy, lossfn, N, lr, max_norm, training_log, policy_filename; scale = 0.2)
+    # Save the initial policy
+    save_policy(policy_filename, policy)
+    lr = lr / scale
+    while true
+        # Keep a reference policy
+        prev_policy_outer = load_policy(policy_filename)
+        # Drop the learning rate
+        lr = lr*scale
+        println("Setting the learning rate to lr=", lr)
+
+        # Train until there is no more improvement
+        while true
+            println("Training for N=", N, " steps")
+            prev_policy_inner = load_policy(policy_filename)
+            policy_to_update = load_policy(policy_filename)
+            train!(policy_to_update, lossfn, N, lr, max_norm, training_log, policy_filename)
+            (prev_policy_inner == load_policy(policy_filename)) && break
+        end
+
+        println("Found no further improvement at this learning rate")
+
+        # If the best policy after training was just the old policy then we don't have any improvement so we should stop
+        prev_policy_outer == load_policy(policy_filename) && break
+    end
+    println("Done training, no further improvement found")
+end
+
+# Add entry to a log dictionary. If no key exists make new array, otherwise push to array
 function add_entry(d::Dict, key, val)
     !haskey(d, key) ? (d[key] = [val]) : push!(d[key], val)
 end

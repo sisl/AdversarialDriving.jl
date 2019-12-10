@@ -9,17 +9,27 @@ policy = init_policy([input_size, 100, 50, 25, output_size])
 params = to_params(policy)
 opt = ADAM(0.001, (0.9, 0.999))
 N_tasks = 5
-N_eps_train = 10
-N_eps_test = 1
+N_eps_train = 100
+N_eps_test = 10
 inner_lr = 0.01
 
 loss() = maml_task_batch_loss(policy, gen_ADM_sampler(dt = 0.3, T=13), N_tasks, N_eps_train, N_eps_test, inner_lr, 0.95, 1., first_order = true)
 
-N = 1
+N = 100
 @time for i=1:N
+    old_policy = deepcopy(policy)
+
     grads = gradient(() -> loss(), params)
     update_with_clip!(opt, grads, params, max_norm)
 
-    println("Finished epoch, ", i, " return: ", episode_returns(task, policy, 10), " grad norms: ", clipped_grad_norms(grads, params, max_norm))
+    add_entry(training_log, "kl", kl_divergence(policy, old_policy, training_log["last_obs"]))
+    add_entry(training_log, "grad_norm", clipped_grad_norms(grads, params, max_norm))
+    if training_log["return"][end] > best_return
+        println("saving policy!")
+        global best_return = training_log["return"][end]
+        global best_policy = deepcopy(policy)
+    end
+
+    println("Finished epoch, ", i, " return: ", training_log["return"][end], " grad norms: ", training_log["grad_norm"][end])
 end
 

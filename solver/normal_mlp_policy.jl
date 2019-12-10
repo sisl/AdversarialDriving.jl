@@ -2,13 +2,19 @@ using Flux: mse, glorot_normal, param, Params
 using Distributions
 using LinearAlgebra
 using Random
+using Serialization
 include("sampler.jl")
+
+save_policy = serialize
+load_policy = deserialize
 
 @with_kw mutable struct MLPPolicy
     weights::Dict = Dict()
     input_mean::Array{Float64, 2} = [0.]'
     input_std::Array{Float64, 2} = [1.]'
 end
+
+Base.:(==)(l::MLPPolicy, r::MLPPolicy) = (l.weights == r.weights && l.input_mean == r.input_mean && l.input_std == r.input_std)
 
 function kl_divergence(d0::MvNormal, d1::MvNormal)
     Σ0 = Matrix(d0.Σ)
@@ -43,7 +49,7 @@ W(i) = string("W", i)
 b(i) = string("b", i)
 
 # Initialize the policy with the appropriate number of layers/sizes
-function init_policy(layers ; init_W = glorot_normal, init_b = zeros, σ_init = ones, estimate_obs_stats = false, N_eps = 100)
+function init_policy(layers ; init_W = glorot_normal, init_b = zeros, σ_init = ones, estimate_obs_stats = false, N_eps = 100, task = nothing)
     π = MLPPolicy()
 
     # Add the mlp weights
