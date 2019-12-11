@@ -1,6 +1,7 @@
 using Interact
 using Reel
 using AutoViz
+using Plots
 
 # Strings describing the goal of each lane
 goal_map = Dict(1 => "turn right", 2 =>"straight", 3=>"straight", 4=>"turn left", 5=>"turn left", 6=> "turn right")
@@ -51,7 +52,7 @@ function make_video(scenes, models, roadway, filename; egoid = nothing)
 end
 
 function plot_training(training_log)
-    p1 = plot(training_log["return"], xlabel="Iterations", ylabel="Return", title = "Average batch return", label="")
+    p1 = plot(-training_log["return"], xlabel="Iterations", ylabel="Return", title = "Average batch return", label="", yscale=:log10)
     p2 = plot(training_log["grad_norm"], xlabel="Iterations", ylabel="grad_norm", title = "Clipped Grad norm", label="")
     p3 = plot(training_log["kl"], xlabel="Iterations", ylabel="KL Divergence", title = "KL Divergence", label="")
     p4 = plot(training_log["lr"], xlabel="Iterations", ylabel="Learning Rate", title = "Learning Rate", label="")

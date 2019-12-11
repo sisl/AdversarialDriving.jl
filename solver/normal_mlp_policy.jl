@@ -6,7 +6,7 @@ using Serialization
 include("sampler.jl")
 
 save_policy(name, policy) = serialize(string(name, ".model"), policy)
-load_policy(name) = deserialize(stirng(name, ".model"))
+load_policy(name) = deserialize(string(name, ".model"))
 
 @with_kw mutable struct MLPPolicy
     weights::Dict = Dict()

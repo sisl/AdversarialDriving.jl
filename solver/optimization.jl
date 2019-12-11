@@ -42,6 +42,17 @@ function train!(policy, lossfn, N, lr, max_norm, training_log, policy_filename =
     end
 end
 
+function train_while_dropping_lr(policy, lossfn, N, lr, max_norm, training_log, policy_filename; scale = 0.2)
+    save_policy(policy_filename, policy)
+    lr = lr / scale
+    while lr > 1e-7
+        lr = lr*scale
+        println("Setting the learning rate to lr=", lr)
+        policy = load_policy(policy_filename)
+        train!(policy, lossfn, N, lr, max_norm, training_log, policy_filename)
+    end
+end
+
 # Training loop
 function train_with_restarts(policy, lossfn, N, lr, max_norm, training_log, policy_filename; scale = 0.2)
     # Save the initial policy
