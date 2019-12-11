@@ -1,17 +1,20 @@
-# include("plot_utils.jl")
+include("plot_utils.jl")
 include("../simulator/gym_continous.jl")
 include("../solver/ppo.jl")
 
 env = make("Pendulum-v0", :human_pane)
-myfavpolicy = init_policy([o_dim(env), 100, 50, 25, a_dim(env)])
+policy = init_policy([o_dim(env), 100, 50, 25, a_dim(env)])
 
-lr = 0.0001
-max_norm = 1.
+
+lr = 0.001
+max_norm = 1
 training_log = Dict()
-myfavloss(π) = ppo_batch_loss(env, π, 250, 1., 0.95, 1., store_log = true, logger = training_log)
+loss(p) = ppo_batch_loss(env, p, 125, 1., 0.95, 1., store_log = true, logger = training_log)
 
-N_iterations = 200
-train!(myfavpolicy, myfavloss, N_iterations, lr, max_norm, training_log, "pendulum_ppo.model")
+N_iterations = 100
+filename = "pendulum_ppo"
+save_policy(filename, policy)
+train!(policy, loss, N_iterations, lr, max_norm, training_log, filename)
 # train_with_restarts(policy, loss, N_iterations, lr, max_norm, training_log, "pendulum_ppo.model")
 
 plot_training(training_log)

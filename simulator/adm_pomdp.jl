@@ -13,7 +13,7 @@ mutable struct AdversarialADM <: POMDP{Tuple{BlinkerScene, Float64}, Array{Float
     initial_scene # Initial scene
 end
 
-o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH
+o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH + 1 # The plus one is for time
 a_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*ACT_PER_VEH
 max_steps(pomdp::AdversarialADM) = Int64(round(pomdp.T / pomdp.dt, RoundUp)) + 1
 dt(pomdp::AdversarialADM) = pomdp.dt
@@ -27,7 +27,12 @@ get_t(s::Tuple{BlinkerScene, Float64}) = s[2]
 # Converts the state of a blinker vehicle to a vector
 function to_vec(veh::BlinkerVehicle)
     p = posg(veh.state)
-    Float64[p.x, p.y, p.θ, vel(veh.state), laneid(veh), veh.state.blinker]
+    Float64[(p.x - 0.) / 50.,
+            (p.y - 0.) / 50.,
+            (p.θ - 0.) / (6.2831853071794),
+            (vel(veh.state) - 15.) / 15.,
+            (laneid(veh) - 3.5) /  2.5,
+            (veh.state.blinker - 0.5) / 0.5]
 end
 
 # Converts the array of actions to LaneFollowingAccelBlinker actions per vehicle
@@ -57,10 +62,11 @@ end
 
 # Get the vector of observations from the state
 function observe_state(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64})
-    o = zeros(pomdp.num_vehicles*OBS_PER_VEH)
+    o = zeros(pomdp.num_vehicles*OBS_PER_VEH + 1)
     for (ind,veh) in enumerate(get_scene(s))
         o[(veh.id-1)*OBS_PER_VEH + 1: veh.id*OBS_PER_VEH] .= to_vec(veh)
     end
+    o[end] = get_t(s)
     o
 end
 

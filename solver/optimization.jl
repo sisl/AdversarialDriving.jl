@@ -1,11 +1,13 @@
 using Flux
 using Flux.Tracker
+using LinearAlgebra
+using Serialization
 
 # Generic training loop that applies clipping and stores training info
-function train!(policy, lossfn, N, lr, max_norm, training_log, policy_filename)
+function train!(policy, lossfn, N, lr, max_norm, training_log, policy_filename = nothing)
     # Store the return of the policy for later comparison
-    # lossfn(policy)
-    # best_return = training_log["return"][end]
+    lossfn(policy)
+    best_return = training_log["return"][end]
 
     # Define the optimizer with the desired learning rate
     opt = ADAM(lr, (0.9, 0.999))
@@ -14,25 +16,29 @@ function train!(policy, lossfn, N, lr, max_norm, training_log, policy_filename)
     params = to_params(policy)
     for i=1:N
         # Store the previous policy so that the KL-Divergence can be computed between steps
-        # prev_policy = deepcopy(policy)
+        prev_policy = deepcopy(policy)
 
         # Compute the gradients and update the parameters
         grads = gradient(() -> lossfn(policy), params)
         update_with_clip!(opt, grads, params, max_norm)
 
         # Store relevant metrics for training (kl divergence and magnitude of clipped gradients)
-        # add_entry(training_log, "kl", kl_divergence(policy, prev_policy, training_log["last_obs"]))
-        # add_entry(training_log, "grad_norm", clipped_grad_norms(grads, params, max_norm))
-        # add_entry(training_log, "lr", lr)
+        add_entry(training_log, "kl", kl_divergence(policy, prev_policy, training_log["last_obs"]))
+        add_entry(training_log, "grad_norm", clipped_grad_norms(grads, params, max_norm))
+        add_entry(training_log, "lr", lr)
 
         # Write the best policy to disk
-        # if training_log["return"][end] > best_return
-            # println("Saving new best policy policy!")
-            # best_return = training_log["return"][end]
-            # save_policy(policy_filename, policy)
-        # end
-
-        println("Finished epoch, ", i, " return: ", training_log["return"][end])#, " grad norms: ", training_log["grad_norm"][end])
+        if !isnothing(policy_filename) && training_log["return"][end] > best_return
+            println("Saving new best policy policy!")
+            best_return = training_log["return"][end]
+            save_policy(policy_filename, policy)
+        end
+        if haskey(training_log, "return_before")
+            println("e=", i, " return_before: ", training_log["return_before"][end], " max_ret_before: ", training_log["max_return_before"][end], " return_after: ", training_log["return_after"][end], " max_ret_after: ", training_log["max_return_after"][end], " gnorm: ", training_log["grad_norm"][end], " kl: ", training_log["kl"][end], " stdev: ", mean(policy.weights["σ2"]) )
+        else
+            println("e=", i, " avg_ret: ", training_log["return"][end], " max_ret: ", training_log["max_return"][end], " gnorm: ", training_log["grad_norm"][end], " kl: ", training_log["kl"][end], " stdev: ", mean(policy.weights["σ2"]) )
+        end
+        serialize(string(policy_filename, ".training_log"), training_log)
     end
 end
 
@@ -49,13 +55,13 @@ function train_with_restarts(policy, lossfn, N, lr, max_norm, training_log, poli
         println("Setting the learning rate to lr=", lr)
 
         # Train until there is no more improvement
-        while true
+        # while true
             println("Training for N=", N, " steps")
-            prev_policy_inner = load_policy(policy_filename)
+            # prev_policy_inner = load_policy(policy_filename)
             policy_to_update = load_policy(policy_filename)
             train!(policy_to_update, lossfn, N, lr, max_norm, training_log, policy_filename)
-            (prev_policy_inner == load_policy(policy_filename)) && break
-        end
+            # (prev_policy_inner == load_policy(policy_filename)) && break
+        # end
 
         println("Found no further improvement at this learning rate")
 

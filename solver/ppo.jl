@@ -9,6 +9,7 @@ function ppo_batch_loss(task, policy, N_eps, γ, λ, baseline_reg_coeff; ϵ = 0.
     # Sample a batch from the current policy
     batch = sample_batch(task, policy, N_eps)
     store_log && add_entry(logger, "return", average_episode_return(batch))
+    store_log && add_entry(logger, "max_return", max_episode_return(batch))
     store_log && (logger["last_obs"] = batch.observations)
 
     # Compute advantages with linear baseline

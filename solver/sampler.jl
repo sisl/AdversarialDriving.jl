@@ -27,6 +27,8 @@ function Batch(N_max, o_dim, a_dim)
           )
 end
 
+append_ep!(batch::Batch, b2::Batch) = append_ep!(batch::Batch, b2.observations, b2.actions, b2.rewards, b2.returns, b2.times)
+
 # Append an episode's worth of data to the Batch
 function append_ep!(batch::Batch, obs, as, rs, rets, times)
     @assert size(obs,1) == size(as,1) && size(as,1) == length(rs) && length(rs) == length(rets) && length(rets) == length(times) && size(obs, 2) == size(batch.observations, 2) && size(as, 2) == size(batch.actions, 2)
@@ -89,6 +91,11 @@ function average_episode_return(batch)
     starts = episode_starts(batch)
     N_eps = sum(starts)
     sum(batch.returns[starts]) / N_eps
+end
+
+function max_episode_return(batch)
+    starts = episode_starts(batch)
+    maximum(batch.returns[starts])
 end
 
 # Average observations

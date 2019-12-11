@@ -17,10 +17,10 @@ function generate_ADM_POMDP(; dt = 0.15, T=10, rng = Random.GLOBAL_RNG)
     # Construct Models for non-ego actors (controlled by the Learner)
     models = Dict{Int, DriverModel}()
     template = generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
-    models[1] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = 1)
-    models[2] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = 1)
-    models[3] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = 1)
-    models[4] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = 1)
+    models[1] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = .1)
+    models[2] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = .1)
+    models[3] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = .1)
+    models[4] = generate_TIDM_AST(template, p_toggle_blinker = 1e-4, p_toggle_goal = 1e-4, σ2a = .1)
 
     # Construct the parameters of the ego vehicle policy
     egoid = 5
@@ -45,5 +45,5 @@ end
 sample_ADM_POMDPs(n_tasks; dt = 0.1, T=10) = [generate_ADM_POMDP(dt=dt, T=T) for i in 1:n_tasks]
 
 # Returns a sampler with the desired timestepping
-gen_ADM_sampler(;dt = 0.1, T=10) = (N) -> sample_ADM_POMDPs(N, dt, T)
+gen_ADM_sampler(;dt = 0.1, T=10) = (N) -> sample_ADM_POMDPs(N, dt = dt, T =T)
 
