@@ -5,16 +5,18 @@ const ACT_PER_VEH = 3
 
 mutable struct AdversarialADM <: POMDP{Tuple{BlinkerScene, Float64}, Array{Float64}, Array{Float64}}
     num_vehicles # The number of vehicles represented in the state and action spaces
+    num_controllable_vehicles # Number of vehicles that will be part of the action space
     models # The models for the simulation
     roadway # The roadway for the simulation
     egoid # The id of the ego vehicle
     dt # timestep of the simulation
     T # Max time of the simulation
     initial_scene # Initial scene
+    last_observation # Last observation of the vehicle state
 end
 
 o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH + 1 # The plus one is for time
-a_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*ACT_PER_VEH
+a_dim(pomdp::AdversarialADM) = pomdp.num_controllable_vehicles*ACT_PER_VEH
 max_steps(pomdp::AdversarialADM) = Int64(round(pomdp.T / pomdp.dt, RoundUp)) + 1
 dt(pomdp::AdversarialADM) = pomdp.dt
 
@@ -38,7 +40,7 @@ end
 # Converts the array of actions to LaneFollowingAccelBlinker actions per vehicle
 function to_actions(pomdp::AdversarialADM, action_vec::Array{Float64})
     actions = fill(LaneFollowingAccelBlinker(0.,0.,false,false), pomdp.num_vehicles)
-    for i in 1:pomdp.num_vehicles
+    for i in 1:pomdp.num_controllable_vehicles
         j = (i-1)*ACT_PER_VEH + 1
         da = action_vec[j]
         toggle_goal = action_vec[j+1] > 0.
@@ -62,11 +64,12 @@ end
 
 # Get the vector of observations from the state
 function observe_state(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64})
-    o = zeros(pomdp.num_vehicles*OBS_PER_VEH + 1)
+    o = deepcopy(pomdp.last_observation)
     for (ind,veh) in enumerate(get_scene(s))
         o[(veh.id-1)*OBS_PER_VEH + 1: veh.id*OBS_PER_VEH] .= to_vec(veh)
     end
     o[end] = get_t(s)
+    pomdp.last_observation = o
     o
 end
 
@@ -172,9 +175,11 @@ end
 
 # compiles a set of random actions
 function random_action(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64}, rng::AbstractRNG = Random.GLOBAL_RNG)
-    actions = Array{LaneFollowingAccelBlinker}(undef, pomdp.num_vehicles)
+    actions = Array{LaneFollowingAccelBlinker}(undef, pomdp.num_controllable_vehicles)
     for (i,veh) in enumerate(get_scene(s))
-        actions[veh.id] = random_action(pomdp.models[veh.id], rng)
+        if pomdp.models[veh.id].force_action
+            actions[veh.id] = random_action(pomdp.models[veh.id], rng)
+        end
     end
     to_vec(actions)
 end

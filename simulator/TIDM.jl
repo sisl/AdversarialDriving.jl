@@ -70,7 +70,7 @@ function AutomotiveDrivingModels.propagate(veh::BlinkerVehicle, action::LaneFoll
     if action.toggle_goal
         curr_index = findfirst(veh.state.goals .== laneid(veh))
         @assert !isnothing(curr_index)
-        new_goal = veh.state.goals[(curr_index + 1) % length(veh.state.goals) + 1]
+        new_goal = veh.state.goals[curr_index % length(veh.state.goals) + 1]
         if can_have_goal(veh, new_goal, roadway)
             veh = set_veh_lane(veh, new_goal, roadway)
         end

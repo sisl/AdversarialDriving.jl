@@ -31,6 +31,7 @@ function maml_task_batch_loss(policy, task_sampler, N_tasks, N_eps_train, N_eps_
         add_entry(logger, "return", avg_ret_after / N_tasks)
         add_entry(logger, "return_after", avg_ret_after / N_tasks)
         add_entry(logger, "max_return_after", avg_max_ret_after / N_tasks)
+        add_entry(logger, "max_return", avg_max_ret_after / N_tasks)
         add_entry(logger, "return_before", avg_ret_before / N_tasks)
         add_entry(logger, "max_return_before", avg_max_ret_before / N_tasks)
     end
