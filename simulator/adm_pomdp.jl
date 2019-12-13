@@ -1,116 +1,147 @@
 using POMDPs
 
-const OBS_PER_VEH = 6
-const ACT_PER_VEH = 3
+const OBS_PER_VEH = 4
+const ACT_PER_VEH = 7
 
-mutable struct AdversarialADM <: POMDP{Tuple{BlinkerScene, Float64}, Array{Float64}, Array{Float64}}
+mutable struct AdversarialADM <: POMDP{BlinkerScene, Int, Array{Float64}}
     num_vehicles # The number of vehicles represented in the state and action spaces
     num_controllable_vehicles # Number of vehicles that will be part of the action space
     models # The models for the simulation
     roadway # The roadway for the simulation
     egoid # The id of the ego vehicle
-    dt # timestep of the simulation
-    T # Max time of the simulation
     initial_scene # Initial scene
+    dt # Simulation timestep
     last_observation # Last observation of the vehicle state
 end
 
-o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH + 1 # The plus one is for time
-a_dim(pomdp::AdversarialADM) = pomdp.num_controllable_vehicles*ACT_PER_VEH
-max_steps(pomdp::AdversarialADM) = Int64(round(pomdp.T / pomdp.dt, RoundUp)) + 1
-dt(pomdp::AdversarialADM) = pomdp.dt
+o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH
+a_dim(pomdp::AdversarialADM) = ACT_PER_VEH^pomdp.num_controllable_vehicles
 
-# Get the scene from the POMDP state
-get_scene(s::Tuple{BlinkerScene, Float64}) = s[1]
-
-# Get the simulation time from the POMDP state
-get_t(s::Tuple{BlinkerScene, Float64}) = s[2]
-
-# Converts the state of a blinker vehicle to a vector
-function to_vec(veh::BlinkerVehicle)
-    p = posg(veh.state)
-    Float64[(p.x - 0.) / 50.,
-            (p.y - 0.) / 50.,
-            (p.θ - 0.) / (6.2831853071794),
-            (vel(veh.state) - 15.) / 15.,
-            (laneid(veh) - 3.5) /  2.5,
-            (veh.state.blinker - 0.5) / 0.5]
+function index_to_action(action::Int)
+    action == 1 && return LaneFollowingAccelBlinker(0, -0.75, false, false)
+    action == 2 && return LaneFollowingAccelBlinker(0, -0.25, false, false)
+    action == 3 && return LaneFollowingAccelBlinker(0, 0., false, false)
+    action == 4 && return LaneFollowingAccelBlinker(0, 0.25, false, false)
+    action == 5 && return LaneFollowingAccelBlinker(0, 0.75, false, false)
+    action == 6 && return LaneFollowingAccelBlinker(0, 0., true, false)
+    action == 7 && return LaneFollowingAccelBlinker(0, 0., false, true)
 end
 
 # Converts the array of actions to LaneFollowingAccelBlinker actions per vehicle
-function to_actions(pomdp::AdversarialADM, action_vec::Array{Float64})
+#TODO: Fix for multiple actors
+function to_actions(pomdp::AdversarialADM, action::Int)
     actions = fill(LaneFollowingAccelBlinker(0.,0.,false,false), pomdp.num_vehicles)
+    @assert pomdp.num_controllable_vehicles == 1
     for i in 1:pomdp.num_controllable_vehicles
-        j = (i-1)*ACT_PER_VEH + 1
-        da = action_vec[j]
-        toggle_goal = action_vec[j+1] > 0.
-        toggle_blinker = action_vec[j+2] > 0.
-        # Note that the acceleration is set to 0 and will not be used
-        actions[i] = LaneFollowingAccelBlinker(0, da, toggle_goal, toggle_blinker)
+        actions[i] = index_to_action(action)
     end
     actions
 end
 
-function to_vec(actions::Vector{LaneFollowingAccelBlinker})
-    res = zeros(ACT_PER_VEH*length(actions))
-    for i=1:length(actions)
-        j = (i-1)*ACT_PER_VEH + 1
-        res[j] = actions[i].da
-        res[j+1] = actions[i].toggle_goal ? 1. : -1.
-        res[j+2] = actions[i].toggle_blinker ? 1. : -1.
-    end
-    res
+# TODO: Fix for multiple actors
+POMDPs.actions(pomdp::AdversarialADM, state::Tuple{BlinkerScene, Float64}) = [1:7 ...]
+POMDPs.actions(pomdp::AdversarialADM) = [1:7 ...]
+
+POMDPs.actionindex(pomdp::AdversarialADM, a::Int) = a
+
+# Converts the state of a blinker vehicle to a vector
+function to_vec(veh::BlinkerVehicle)
+    p = posf(veh.state)
+    Float64[p.s,
+            vel(veh.state),
+            laneid(veh),
+            veh.state.blinker]
 end
 
-# Get the vector of observations from the state
-function observe_state(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64})
+# Converts from vector to state
+function POMDPs.convert_s(::Type{BlinkerScene}, s::AbstractArray{Float64}, pomdp::AdversarialADM)
+    new_scene = BlinkerScene()
+    Nveh = Int(length(s) / OBS_PER_VEH)
+
+    # Loop through the vehicles in the scene, apply action and add to next scene
+    for i = 1:Nveh
+        j = (i-1)*OBS_PER_VEH + 1
+        d = s[j] # Distance along the lane
+        v = s[j+1] # velocity
+        g = s[j+2] # Goal (lane id)
+        b = s[j+3] # blinker
+
+        laneid = Int(g)
+        lane = pomdp.roadway[laneid].lanes[1]
+        blinker = Bool(b)
+        vs = VehicleState(Frenet(lane, d, 0.), pomdp.roadway, v)
+        bv = BlinkerVehicle(BlinkerState(vs, blinker, pomdp.models[i].goals[i]), VehicleDef(), i)
+
+        if !end_of_road(bv, pomdp.roadway)
+            push!(new_scene, bv)
+        end
+    end
+    new_scene
+end
+
+# Convert from state to vector (this one is simple )
+function POMDPs.convert_s(::Type{Vector{Float64}}, state::BlinkerScene, pomdp::AdversarialADM)
     o = deepcopy(pomdp.last_observation)
-    for (ind,veh) in enumerate(get_scene(s))
+    for (ind,veh) in enumerate(state)
         o[(veh.id-1)*OBS_PER_VEH + 1: veh.id*OBS_PER_VEH] .= to_vec(veh)
     end
-    o[end] = get_t(s)
     pomdp.last_observation = o
     o
 end
 
+# function to_vec(actions::Vector{LaneFollowingAccelBlinker})
+#     res = zeros(ACT_PER_VEH*length(actions))
+#     for i=1:length(actions)
+#         j = (i-1)*ACT_PER_VEH + 1
+#         res[j] = actions[i].da
+#         res[j+1] = actions[i].toggle_goal ? 1. : -1.
+#         res[j+2] = actions[i].toggle_blinker ? 1. : -1.
+#     end
+#     res
+# end
+
+# Get the vector of observations from the state
+# function observe_state(pomdp::AdversarialADM, s::BlinkerScene)
+#     o = deepcopy(pomdp.last_observation)
+#     for (ind,veh) in enumerate(s)
+#         o[(veh.id-1)*OBS_PER_VEH + 1: veh.id*OBS_PER_VEH] .= to_vec(veh)
+#     end
+#     pomdp.last_observation = o
+#     o
+# end
+
 # Returns the intial state of the pomdp simulator
-function POMDPs.initialstate(pomdp::AdversarialADM, rng::AbstractRNG = Random.GLOBAL_RNG)
-    return (pomdp.initial_scene, 0.)
-end
+POMDPs.initialstate(pomdp::AdversarialADM, rng::AbstractRNG = Random.GLOBAL_RNG) = pomdp.initial_scene
 
 # Get the reward from the actions taken and the next state
-function reward(pomdp::AdversarialADM, a::Array{LaneFollowingAccelBlinker}, sp::Tuple{BlinkerScene, Float64})
+function reward(pomdp::AdversarialADM, a::Array{LaneFollowingAccelBlinker}, sp::BlinkerScene)
     isterm = isterminal(pomdp, sp)
     iscol = iscollision(pomdp, sp)
 
     reward = 0
-    for (ind,veh) in enumerate(get_scene(sp))
+    for (ind,veh) in enumerate(sp)
         i = veh.id
         if i != pomdp.egoid
             reward += get_actions_logpd(pomdp.models[i], a[i])
         end
     end
-    if length(get_scene(sp)) > 0
-        reward = reward / length(get_scene(sp))
-        reward -= 0.1*min_dist(get_scene(sp), pomdp.egoid)
+    if length(sp) > 0
+        reward = reward / length(sp)
+        # reward -= 0.1*min_dist(sp, pomdp.egoid)
     end
 
     if isterm && !iscol
         reward = -10000
     end
-    # if iscol
-    #     println("found a collision!")
-    # end
     reward
 end
 
-function step_scene(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64}, actions::Array{LaneFollowingAccelBlinker}, rng::AbstractRNG)
+function step_scene(pomdp::AdversarialADM, s::BlinkerScene, actions::Array{LaneFollowingAccelBlinker}, rng::AbstractRNG)
     new_scene = BlinkerScene()
-    next_t = get_t(s) + pomdp.dt
 
     # Loop through the vehicles in the scene, apply action and add to next scene
-    for (i, veh) in enumerate(get_scene(s))
-        observe!(pomdp.models[veh.id], get_scene(s), pomdp.roadway, veh.id)
+    for (i, veh) in enumerate(s)
+        observe!(pomdp.models[veh.id], s, pomdp.roadway, veh.id)
 
         # Set the forced actions of the model
         action = actions[veh.id]
@@ -127,11 +158,11 @@ function step_scene(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64}, acti
         end
     end
 
-    return (new_scene, next_t)
+    return new_scene
 end
 
 # The generative interface to the POMDP
-function POMDPs.gen(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64}, a::Array{Float64}, rng::Random.AbstractRNG = Random.GLOBAL_RNG)
+function POMDPs.gen(pomdp::AdversarialADM, s::BlinkerScene, a::Int, rng::Random.AbstractRNG = Random.GLOBAL_RNG)
     # Extract the actions that are going to be used
     actions = to_actions(pomdp, a)
 
@@ -143,21 +174,21 @@ function POMDPs.gen(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64}, a::A
     r = reward(pomdp, actions, sp)
 
     # Extract the observations
-    o = observe_state(pomdp, sp)
+    o = convert_s(Vector{Float64}, sp, pomdp)
 
     # Return
     (sp=sp, o=o, r=r)
 end
 
 # Discount factor for the POMDP (Set to 1 because of the finite horizon)
-POMDPs.discount(pomdp::AdversarialADM) = 1.
+POMDPs.discount(pomdp::AdversarialADM) = 0.95
 
 # Check if there is a collision with the ego vehicle in the scene
-iscollision(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64}) = length(get_scene(s)) > 0 && ego_collides(pomdp.egoid, get_scene(s))
+iscollision(pomdp::AdversarialADM, s::BlinkerScene) = length(s) > 0 && ego_collides(pomdp.egoid, s)
 
 # The simulation is terminal if there is collision with the ego vehicle or if the maximum simulation time has been reached
-function POMDPs.isterminal(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64})
-    length(get_scene(s)) == 0 || get_t(s) >= pomdp.T || iscollision(pomdp, s)
+function POMDPs.isterminal(pomdp::AdversarialADM, s::BlinkerScene)
+    length(s) == 0 || iscollision(pomdp, s)
 end
 
 
@@ -165,18 +196,18 @@ end
 
 # Compiles a set of nominal actions for each vehicle in the scene
 # Number of vehicles is included so that the action space can stay the same size
-function nominal_action(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64})
+function nominal_action(pomdp::AdversarialADM, s::BlinkerScene)
     actions = Array{LaneFollowingAccelBlinker}(undef, pomdp.num_vehicles)
-    for (i,veh) in enumerate(get_scene(s))
+    for (i,veh) in enumerate(s)
         actions[veh.id] = LaneFollowingAccelBlinker(0., 0., false, false)
     end
     to_vec(actions)
 end
 
 # compiles a set of random actions
-function random_action(pomdp::AdversarialADM, s::Tuple{BlinkerScene, Float64}, rng::AbstractRNG = Random.GLOBAL_RNG)
+function random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::AbstractRNG = Random.GLOBAL_RNG)
     actions = Array{LaneFollowingAccelBlinker}(undef, pomdp.num_controllable_vehicles)
-    for (i,veh) in enumerate(get_scene(s))
+    for (i,veh) in enumerate(s)
         if pomdp.models[veh.id].force_action
             actions[veh.id] = random_action(pomdp.models[veh.id], rng)
         end
@@ -198,7 +229,7 @@ function policy_rollout(pomdp::AdversarialADM, policy, s0; save_scenes = false)
 
     i = 0
     while !isterminal(pomdp, s)
-        save_scenes && push!(scenes, get_scene(s))
+        save_scenes && push!(scenes,s)
         i += 1
         observations[i, :] .= o
         a = policy(o)
@@ -206,7 +237,7 @@ function policy_rollout(pomdp::AdversarialADM, policy, s0; save_scenes = false)
         s, o, r = gen(pomdp, s, a)
         rewards[i] = r
     end
-    save_scenes && push!(scenes, get_scene(s))
+    save_scenes && push!(scenes, s)
     if !save_scenes
         return view(observations, 1:i, :), view(actions, 1:i, :), view(rewards, 1:i)
     else

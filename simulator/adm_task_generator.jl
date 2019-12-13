@@ -3,7 +3,7 @@ include("generate_roadway.jl")
 include("adm_pomdp.jl")
 using Random
 
-function generate_1car_ADM_POMDP(; dt = 0.15, T=10, rng = Random.GLOBAL_RNG)
+function generate_1car_ADM_POMDP(;dt = 0.1, rng = Random.GLOBAL_RNG)
     roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy = generate_T_intersection()
     scene = BlinkerScene()
 
@@ -29,14 +29,12 @@ function generate_1car_ADM_POMDP(; dt = 0.15, T=10, rng = Random.GLOBAL_RNG)
     # models[egoid].idm = IntelligentDriverModel(T = headway_t, v_des = v_des, s_min = s_min, a_max = a_max)
 
     # Simulation timestepping
-    timestep = dt
-    t_end = T
     num_vehicles = length(scene)
     num_controllable_vehicles = num_vehicles - 1
-    AdversarialADM(num_vehicles, num_controllable_vehicles, models, roadway, egoid, timestep, t_end, scene, zeros(num_vehicles*OBS_PER_VEH + 1))
+    AdversarialADM(num_vehicles, num_controllable_vehicles, models, roadway, egoid, scene, dt, zeros(num_vehicles*OBS_PER_VEH))
 end
 
-function generate_ADM_POMDP(; dt = 0.15, T=10, rng = Random.GLOBAL_RNG)
+function generate_ADM_POMDP(; dt = 0.1, rng = Random.GLOBAL_RNG)
     roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy = generate_T_intersection()
     scene = BlinkerScene()
 
@@ -61,19 +59,15 @@ function generate_ADM_POMDP(; dt = 0.15, T=10, rng = Random.GLOBAL_RNG)
     models[egoid].force_action = false
 
     headway_t = max(0.5, rand(rng, Normal(1.5, 0.5))) # desired time headway [s]
-    v_des = max(15.0, rand(rng, Normal(29.0, 5.0))) # desired speed [m/s]
+    v_des = max(15.0, rand(rng, Normal(20.0, 5.0))) # desired speed [m/s]
     s_min = max(1.0, rand(rng, Normal(5.0, 1.0))) # minimum acceptable gap [m]
     a_max = max(2.0, rand(rng, Normal(3.0, 1.0))) # maximum acceleration ability [m/s²]
 
     models[egoid].idm = IntelligentDriverModel(T = headway_t, v_des = v_des, s_min = s_min, a_max = a_max)
 
-    # Simulation timestepping
-    timestep = dt
-    t_end = T
-
     num_vehicles = length(scene)
     num_controllable_vehicles = num_vehicles - 1
-    AdversarialADM(num_vehicles, num_controllable_vehicles, models, roadway, egoid, timestep, t_end, scene, zeros(num_vehicles*OBS_PER_VEH + 1))
+    AdversarialADM(num_vehicles, num_controllable_vehicles, models, roadway, egoid, scene, dt, zeros(num_vehicles*OBS_PER_VEH))
 end
 
 # Sample a fixed number of ADM tasks (in the form of POMDPs)

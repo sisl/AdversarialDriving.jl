@@ -21,5 +21,5 @@ N_iterations = 100
 save_policy(filename, policy)
 train!(policy, loss, N_iterations, lr, max_norm, training_log, filename)
 
-plot_training(training_log)
+plot_training(training_log, filename)
 
