@@ -27,6 +27,16 @@ function index_to_action(action::Int)
     action == 7 && return LaneFollowingAccelBlinker(0, 0., false, true)
 end
 
+function action_to_string(action::Int)
+    action == 1 && return "hard brake"
+    action == 2 && return "soft brake"
+    action == 3 && return "do nothing"
+    action == 4 && return "soft acc"
+    action == 5 && return "hard acc"
+    action == 6 && return "toggle goal"
+    action == 7 && return "toggle blinker"
+end
+
 # Converts the array of actions to LaneFollowingAccelBlinker actions per vehicle
 #TODO: Fix for multiple actors
 function to_actions(pomdp::AdversarialADM, action::Int)
@@ -129,9 +139,12 @@ function reward(pomdp::AdversarialADM, a::Array{LaneFollowingAccelBlinker}, sp::
         reward = reward / length(sp)
         # reward -= 0.1*min_dist(sp, pomdp.egoid)
     end
+    if reward > 0
+        error("what? ")
+    end
 
     if isterm && !iscol
-        reward = -10000
+        reward += -10000
     end
     reward
 end
@@ -218,14 +231,14 @@ end
 # Rollout a policy and return the observations, actions and rewards
 function policy_rollout(pomdp::AdversarialADM, policy, s0; save_scenes = false)
     # Setup vectors to store episode information
-    Nmax, osz, asz = max_steps(pomdp), o_dim(pomdp), a_dim(pomdp)
+    Nmax, osz, asz = 300, o_dim(pomdp), 1
     observations = Array{Float64, 2}(undef, Nmax, osz)
-    actions = Array{Float64, 2}(undef, Nmax, asz)
+    actions = Array{Float64}(undef, Nmax)
     rewards = Array{Float64}(undef, Nmax)
     scenes = []
 
     # Setup initial state and observation
-    s, o = s0, observe_state(pomdp, s0)
+    s, o = s0, convert_s(Vector{Float64}, s0, pomdp)
 
     i = 0
     while !isterminal(pomdp, s)
@@ -233,15 +246,15 @@ function policy_rollout(pomdp::AdversarialADM, policy, s0; save_scenes = false)
         i += 1
         observations[i, :] .= o
         a = policy(o)
-        actions[i, :] .= a
+        actions[i] = a
         s, o, r = gen(pomdp, s, a)
         rewards[i] = r
     end
     save_scenes && push!(scenes, s)
     if !save_scenes
-        return view(observations, 1:i, :), view(actions, 1:i, :), view(rewards, 1:i)
+        return view(observations, 1:i, :), view(actions, 1:i), view(rewards, 1:i)
     else
-        return view(observations, 1:i, :), view(actions, 1:i, :), view(rewards, 1:i), scenes
+        return view(observations, 1:i, :), view(actions, 1:i), view(rewards, 1:i), scenes
     end
 end
 
