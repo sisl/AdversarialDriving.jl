@@ -14,6 +14,12 @@ mutable struct AdversarialADM <: POMDP{BlinkerScene, Int, Array{Float64}}
     last_observation # Last observation of the vehicle state
 end
 
+function AdversarialADM(models, roadway, egoid, intial_scene, dt)
+    num_vehicles = length(intial_scene)
+    num_controllable_vehicles = num_vehicles - 1
+    AdversarialADM(num_vehicles, num_controllable_vehicles, models, roadway, egoid, intial_scene, dt, zeros(num_vehicles*OBS_PER_VEH))
+end
+
 o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH
 a_dim(pomdp::AdversarialADM) = ACT_PER_VEH^pomdp.num_controllable_vehicles
 

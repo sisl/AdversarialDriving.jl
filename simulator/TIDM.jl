@@ -267,6 +267,9 @@ function set_veh_lane(veh::BlinkerVehicle, laneid::Int, roadway::Roadway)
     BlinkerVehicle(BlinkerState(VehicleState(posF, roadway, vel(veh.state)), veh.state.blinker, veh.state.goals), veh.def, veh.id)
 end
 
+# Returns a new vehicle that is a copy of the provided vehicle except with the specified id
+set_veh_id(veh::BlinkerVehicle, id::Int) = BlinkerVehicle(veh.state, veh.def, id)
+
 # Check whether a car is allowed to switch goals (requires posF.t to be small)
 function can_have_goal(veh::BlinkerVehicle, goal::Int, roadway::Roadway; ϵ = 1e-6)
     desired_lane = roadway[goal].lanes[1]
