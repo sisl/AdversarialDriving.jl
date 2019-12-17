@@ -129,22 +129,22 @@ function reward(pomdp::AdversarialADM, a::Array{LaneFollowingAccelBlinker}, sp::
     iscol = iscollision(pomdp, sp)
 
     reward = 0
-    for (ind,veh) in enumerate(sp)
-        i = veh.id
-        if i != pomdp.egoid
-            reward += get_actions_logpd(pomdp.models[i], a[i])
-        end
-    end
-    if length(sp) > 0
-        reward = reward / length(sp)
-        # reward -= 0.1*min_dist(sp, pomdp.egoid)
-    end
-    if reward > 0
-        error("what? ")
-    end
+    # for (ind,veh) in enumerate(sp)
+    #     i = veh.id
+    #     if i != pomdp.egoid
+    #         reward += get_actions_logpd(pomdp.models[i], a[i])
+    #     end
+    # end
+    # if length(sp) > 0
+    #     reward = reward / length(sp)
+    #     # reward -= 0.1*min_dist(sp, pomdp.egoid)
+    # end
 
     if isterm && !iscol
-        reward += -10000
+        reward += -1
+    end
+    if isterm && iscol
+        reward += 1
     end
     reward
 end
