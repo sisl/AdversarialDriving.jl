@@ -35,6 +35,16 @@ end
 const BlinkerScene = Frame{BlinkerVehicle}
 BlinkerScene(n::Int=100) = Frame(BlinkerVehicle, n)
 
+function decompose_scene(scene::BlinkerScene, ids::Vector{Int})
+    new_scene = BlinkerScene()
+    count = 1
+    for i in ids
+        push!(new_scene, set_veh_id(get_by_id(scene, i), count))
+        count += 1
+    end
+    new_scene
+end
+
 # Convert BlinkerVehicle to Vehicle
 AutomotiveDrivingModels.Vehicle(b::BlinkerVehicle) = Vehicle(b.state.veh_state, b.def, b.id)
 

@@ -12,12 +12,12 @@ function generate_decomposed_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
     egoid = 2
     egomodel = generate_TIDM_AST(template, p_toggle_blinker = 0., p_toggle_goal = 0., σ2a = 0.)
     egomodel.force_action = false
-    headway_t = max(0.5, rand(rng, Normal(1.5, 0.5))) # desired time headway [s]
-    v_des = max(15.0, rand(rng, Normal(20.0, 5.0))) # desired speed [m/s]
-    s_min = max(1.0, rand(rng, Normal(5.0, 1.0))) # minimum acceptable gap [m]
-    a_max = max(2.0, rand(rng, Normal(3.0, 1.0))) # maximum acceleration ability [m/s²]
-    egomodel.idm = IntelligentDriverModel(T = headway_t, v_des = v_des, s_min = s_min, a_max = a_max)
-    egovehicle = BV(VecSE2(polar(15.0,-π/2) + dx, π/2), 10., goals[5], 5, true, 1, roadway)
+    # headway_t = max(0.5, rand(rng, Normal(1.5, 0.5))) # desired time headway [s]
+    # v_des = max(15.0, rand(rng, Normal(20.0, 5.0))) # desired speed [m/s]
+    # s_min = max(1.0, rand(rng, Normal(5.0, 1.0))) # minimum acceptable gap [m]
+    # a_max = max(2.0, rand(rng, Normal(3.0, 1.0))) # maximum acceleration ability [m/s²]
+    # egomodel.idm = IntelligentDriverModel(T = headway_t, v_des = v_des, s_min = s_min, a_max = a_max)
+    egovehicle = BV(VecSE2(polar(15.0,-π/2) + dx, π/2), 10., goals[5], 5, true, egoid, roadway)
 
     # create list of other vehicles and models
     vehicles = [BV(VecSE2(polar(20.0,-π) - dy, 0), 15., goals[2], 2, false, 1, roadway),
