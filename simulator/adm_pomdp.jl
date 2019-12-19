@@ -24,11 +24,11 @@ o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH
 a_dim(pomdp::AdversarialADM) = ACT_PER_VEH^pomdp.num_controllable_vehicles
 
 function index_to_action(action::Int)
-    action == 1 && return LaneFollowingAccelBlinker(0, -0.75, false, false)
-    action == 2 && return LaneFollowingAccelBlinker(0, -0.25, false, false)
+    action == 1 && return LaneFollowingAccelBlinker(0, -1.75, false, false)
+    action == 2 && return LaneFollowingAccelBlinker(0, -0.5, false, false)
     action == 3 && return LaneFollowingAccelBlinker(0, 0., false, false)
-    action == 4 && return LaneFollowingAccelBlinker(0, 0.25, false, false)
-    action == 5 && return LaneFollowingAccelBlinker(0, 0.75, false, false)
+    action == 4 && return LaneFollowingAccelBlinker(0, 0.5, false, false)
+    action == 5 && return LaneFollowingAccelBlinker(0, 1.75, false, false)
     action == 6 && return LaneFollowingAccelBlinker(0, 0., true, false)
     action == 7 && return LaneFollowingAccelBlinker(0, 0., false, true)
 end
