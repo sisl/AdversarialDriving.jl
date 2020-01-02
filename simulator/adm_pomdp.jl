@@ -23,7 +23,7 @@ end
 o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH
 a_dim(pomdp::AdversarialADM) = ACT_PER_VEH^pomdp.num_controllable_vehicles
 
-function index_to_action(action::Int)
+function index_to_action(pomdp::AdversarialADM, action::Int)
     action == 1 && return LaneFollowingAccelBlinker(0, -1.75, false, false)
     action == 2 && return LaneFollowingAccelBlinker(0, -0.5, false, false)
     action == 3 && return LaneFollowingAccelBlinker(0, 0., false, false)
@@ -33,7 +33,7 @@ function index_to_action(action::Int)
     action == 7 && return LaneFollowingAccelBlinker(0, 0., false, true)
 end
 
-function action_to_string(action::Int)
+function action_to_string(pomdp::AdversarialADM, action::Int)
     action == 1 && return "hard brake"
     action == 2 && return "soft brake"
     action == 3 && return "do nothing"
@@ -49,7 +49,7 @@ function to_actions(pomdp::AdversarialADM, action::Int)
     actions = fill(LaneFollowingAccelBlinker(0.,0.,false,false), pomdp.num_vehicles)
     @assert pomdp.num_controllable_vehicles == 1
     for i in 1:pomdp.num_controllable_vehicles
-        actions[i] = index_to_action(action)
+        actions[i] = index_to_action(pomdp, action)
     end
     actions
 end

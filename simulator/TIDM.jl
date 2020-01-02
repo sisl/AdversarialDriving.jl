@@ -157,7 +157,7 @@ function generate_TIDM_AST(template::TIDM; p_toggle_blinker, p_toggle_goal, σ2a
 end
 
 # Get the probability density of the specified action
-function get_actions_logpd(model::TIDM, action::LaneFollowingAccelBlinker)
+function action_logprob(model::TIDM, action::LaneFollowingAccelBlinker)
     a_pd = logpdf(model.da_dist, action.da)
     goal_pm = logpdf(model.toggle_goal_dist, action.toggle_goal)
     blinker_pm = logpdf(model.toggle_blinker_dist, action.toggle_blinker)
