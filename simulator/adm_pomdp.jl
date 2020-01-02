@@ -148,9 +148,9 @@ function reward(pomdp::AdversarialADM, a::Array{LaneFollowingAccelBlinker}, sp::
     #     # reward -= 0.1*min_dist(sp, pomdp.egoid)
     # end
 
-    if isterm && !iscol
-        reward += -1
-    end
+    # if isterm && !iscol
+    #     reward += -1
+    # end
     if isterm && iscol
         reward += 1
     end
@@ -202,7 +202,7 @@ function POMDPs.gen(pomdp::AdversarialADM, s::BlinkerScene, a, rng::Random.Abstr
 end
 
 # Discount factor for the POMDP (Set to 1 because of the finite horizon)
-POMDPs.discount(pomdp::AdversarialADM) = 0.95
+POMDPs.discount(pomdp::AdversarialADM) = 1.
 
 # Check if there is a collision with the ego vehicle in the scene
 iscollision(pomdp::AdversarialADM, s::BlinkerScene) = length(s) > 0 && ego_collides(pomdp.egoid, s)
