@@ -4,46 +4,34 @@ using POMDPs
 using Plots
 using GridInterpolations
 using LocalFunctionApproximation
-using LocalApproximationValueIteration
+include("../solver/local_approx_Qp.jl")
 using Serialization
 using LinearAlgebra
 using Distributions
 
 ended_in_collision(r) = (r[end] == 1.0)
-function sum_logprob(mdp, a)
+
+function sum_prob(mdp, a)
     if a[1][1] isa LaneFollowingAccelBlinker
-        return sum([sum([action_logprob(mdp.models[1], aii) for aii in ai]) for ai in a])
+        return sum([mean([action_probability(mdp, aii) for aii in ai]) for ai in a])
     else
-        return sum([action_logprob(mdp.models[1], index_to_action(mdp, ai)) for ai in a])
+        return sum([action_probability(mdp, ai) for ai in a])
     end
 end
 
-# Function for sampling actions according to Q(s,a)p(a)
-function stoch_action(policy::LocalApproximationValueIterationPolicy, s::S) where S
-    mdp = policy.mdp
-    Qs = [value(policy, s, a)*exp(action_logprob(mdp.models[1], index_to_action(mdp, a))) for a in actions(mdp,s)]
-    probs = [exp(action_logprob(pomdp.models[1], index_to_action(pomdp,a))) for a in actions(pomdp,o)]
 
-    Qp = Qs .* probs
-    Qp = (sum(Qp) == 0) ? probs / sum(probs) : Qp / sum(Qp)
-
-    index = rand(Categorical(Qp))
-
-    policy.action_map[index]
-end
-
-function random_action(policy::LocalApproximationValueIterationPolicy, o)
+function random_action(policy, o, sample)
     pomdp = policy.mdp
-    probs = [exp(action_logprob(pomdp.models[1], index_to_action(pomdp,a))) for a in actions(pomdp,o)]
+    probs = [action_probability(pomdp, a) for a in actions(pomdp,o)]
     probs = probs ./ sum(probs)
 
     rand(Categorical(probs))
 end
 
 # Generates a joint action from the individual policies. Supply an action function for individual action selection
-function joint_policy(combined_pomdp, policies, o::Vector{Float64}, ind_policy)
+function joint_policy(combined_pomdp, policies, o::Vector{Float64}, ind_policy, sample)
     egoid = combined_pomdp.egoid
-    as = [index_to_action(ind_policy(policies[i], decompose_scene(convert_s(BlinkerScene, o, combined_pomdp), [i, egoid]))) for i=1:length(policies)]
+    as = [index_to_action(combined_pomdp,ind_policy(policies[i], decompose_scene(convert_s(BlinkerScene, o, combined_pomdp), [i, egoid]), sample)) for i=1:length(policies)]
     push!(as, LaneFollowingAccelBlinker(0,0,false,false))
 end
 
@@ -66,7 +54,7 @@ function compare_policies(pomdp, policies, pol_names; N = 100)
         for n=1:N
             o,a,r,scenes = policy_rollout(pomdp, policy, pomdp.initial_scene, save_scenes = true)
             tot_fails += ended_in_collision(r)
-            tot_log_prob += sum_logprob(pomdp, a)
+            tot_log_prob += sum_prob(pomdp, a)
             tot_steps += length(r)
         end
 
@@ -87,15 +75,15 @@ policies = [deserialize(string("policy_decomp_", i, ".jls")) for i in 1:length(d
 pomdp1 = decomposed[1]
 pol_names = ["Max", "Random", "Importance"]
 pols = [
-    (o) -> action(policies[i], convert_s(BlinkerScene, o, pomdp1)),
-    (o) -> random_action(pomdp1, o),
-    (o) -> stoch_action(policies[i], convert_s(BlinkerScene, o, pomdp1))
+    (o) -> action(policies[1], convert_s(BlinkerScene, o, pomdp1), false),
+    (o) -> random_action(policies[1], convert_s(BlinkerScene, o, pomdp1), false),
+    (o) -> action(policies[1], convert_s(BlinkerScene, o, pomdp1), true)
     ]
 
 combined_pols = [
-    (o) -> joint_policy(combined, policies, o, action), # max
-    (o) -> joint_policy(combined, policies, o, random_action), # random
-    (o) -> joint_policy(combined, policies, o, stoch_action), # importance
+    (o) -> joint_policy(combined, policies, o, action, false), # max
+    (o) -> joint_policy(combined, policies, o, random_action, false), # random
+    (o) -> joint_policy(combined, policies, o, action, true), # importance
     ]
 
 

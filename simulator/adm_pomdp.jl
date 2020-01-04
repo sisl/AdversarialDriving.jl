@@ -23,12 +23,13 @@ end
 o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH
 a_dim(pomdp::AdversarialADM) = ACT_PER_VEH^pomdp.num_controllable_vehicles
 
+
 function index_to_action(pomdp::AdversarialADM, action::Int)
-    action == 1 && return LaneFollowingAccelBlinker(0, -1.75, false, false)
-    action == 2 && return LaneFollowingAccelBlinker(0, -0.5, false, false)
-    action == 3 && return LaneFollowingAccelBlinker(0, 0., false, false)
-    action == 4 && return LaneFollowingAccelBlinker(0, 0.5, false, false)
-    action == 5 && return LaneFollowingAccelBlinker(0, 1.75, false, false)
+    action == 1 && return LaneFollowingAccelBlinker(0, das[1], false, false)
+    action == 2 && return LaneFollowingAccelBlinker(0, das[2], false, false)
+    action == 3 && return LaneFollowingAccelBlinker(0, das[3], false, false)
+    action == 4 && return LaneFollowingAccelBlinker(0, das[4], false, false)
+    action == 5 && return LaneFollowingAccelBlinker(0, das[5], false, false)
     action == 6 && return LaneFollowingAccelBlinker(0, 0., true, false)
     action == 7 && return LaneFollowingAccelBlinker(0, 0., false, true)
 end
@@ -57,8 +58,11 @@ end
 to_actions(pomdp::AdversarialADM, action::Array{LaneFollowingAccelBlinker}) = action
 
 # TODO: Fix for multiple actors
-POMDPs.actions(pomdp::AdversarialADM, state::Tuple{BlinkerScene, Float64}) = [1:7 ...]
 POMDPs.actions(pomdp::AdversarialADM) = [1:7 ...]
+POMDPs.actions(pomdp::AdversarialADM, state::Tuple{BlinkerScene, Float64}) = actions(pomdp)
+
+action_probability(pomdp::AdversarialADM, a::Int64) = exp(action_logprob(pomdp.models[1], index_to_action(pomdp, a)))
+action_probability(pomdp::AdversarialADM, a::LaneFollowingAccelBlinker) = exp(action_logprob(pomdp.models[1], a))
 
 POMDPs.actionindex(pomdp::AdversarialADM, a::Int) = a
 
@@ -107,54 +111,12 @@ function POMDPs.convert_s(::Type{Vector{Float64}}, state::BlinkerScene, pomdp::A
     o
 end
 
-# function to_vec(actions::Vector{LaneFollowingAccelBlinker})
-#     res = zeros(ACT_PER_VEH*length(actions))
-#     for i=1:length(actions)
-#         j = (i-1)*ACT_PER_VEH + 1
-#         res[j] = actions[i].da
-#         res[j+1] = actions[i].toggle_goal ? 1. : -1.
-#         res[j+2] = actions[i].toggle_blinker ? 1. : -1.
-#     end
-#     res
-# end
-
-# Get the vector of observations from the state
-# function observe_state(pomdp::AdversarialADM, s::BlinkerScene)
-#     o = deepcopy(pomdp.last_observation)
-#     for (ind,veh) in enumerate(s)
-#         o[(veh.id-1)*OBS_PER_VEH + 1: veh.id*OBS_PER_VEH] .= to_vec(veh)
-#     end
-#     pomdp.last_observation = o
-#     o
-# end
-
 # Returns the intial state of the pomdp simulator
 POMDPs.initialstate(pomdp::AdversarialADM, rng::AbstractRNG = Random.GLOBAL_RNG) = pomdp.initial_scene
 
 # Get the reward from the actions taken and the next state
-function reward(pomdp::AdversarialADM, a::Array{LaneFollowingAccelBlinker}, sp::BlinkerScene)
-    isterm = isterminal(pomdp, sp)
-    iscol = iscollision(pomdp, sp)
-
-    reward = 0
-    # for (ind,veh) in enumerate(sp)
-    #     i = veh.id
-    #     if i != pomdp.egoid
-    #         reward += get_actions_logpd(pomdp.models[i], a[i])
-    #     end
-    # end
-    # if length(sp) > 0
-    #     reward = reward / length(sp)
-    #     # reward -= 0.1*min_dist(sp, pomdp.egoid)
-    # end
-
-    # if isterm && !iscol
-    #     reward += -1
-    # end
-    if isterm && iscol
-        reward += 1
-    end
-    reward
+function POMDPs.reward(pomdp::AdversarialADM, s::BlinkerScene, a::Array{LaneFollowingAccelBlinker}, sp::BlinkerScene)
+    return isterminal(pomdp, sp) && iscollision(pomdp, sp)
 end
 
 function step_scene(pomdp::AdversarialADM, s::BlinkerScene, actions::Array{LaneFollowingAccelBlinker}, rng::AbstractRNG)
@@ -192,7 +154,7 @@ function POMDPs.gen(pomdp::AdversarialADM, s::BlinkerScene, a, rng::Random.Abstr
     sp = step_scene(pomdp, s, actions, rng)
 
     # Get the reward
-    r = reward(pomdp, actions, sp)
+    r = reward(pomdp, s, actions, sp)
 
     # Extract the observations
     o = convert_s(Vector{Float64}, sp, pomdp)

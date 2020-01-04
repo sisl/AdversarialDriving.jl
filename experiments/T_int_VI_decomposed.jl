@@ -2,16 +2,12 @@ include("../simulator/adm_task_generator.jl")
 using POMDPs
 using GridInterpolations
 using LocalFunctionApproximation
-using LocalApproximationValueIteration
+include("../solver/local_approx_Qp.jl")
 using Serialization
 
 decomposed, combined = generate_decomposed_scene(dt = 0.18)
 policies = Array{Any}(undef, length(decomposed))
-N = 27
-pomdp = decomposed[4]
-veh = get_by_id(pomdp.initial_scene, 1)
-posf(veh.state).s
-vel(veh.state)
+N = 10
 
 for i in 1:length(decomposed)
     println("Solving decomposition ", i)
@@ -33,7 +29,7 @@ for i in 1:length(decomposed)
 
     interp = LocalGIFunctionApproximator(grid)  # Create the local function approximator using the grid
 
-    solver = LocalApproximationValueIterationSolver(interp, is_mdp_generative = true, n_generative_samples = 1, verbose = true, max_iterations = 20)
+    solver = LocalQpSolver(interp, is_mdp_generative = true, n_generative_samples = 1, verbose = true, max_iterations = 100)
 
     policy = solve(solver, pomdp)
     serialize(string("policy_decomp_", i, ".jls"), policy)
@@ -41,6 +37,3 @@ for i in 1:length(decomposed)
 end
 
 serialize("combined_policies.jls", policies)
-
-
-

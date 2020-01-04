@@ -65,6 +65,7 @@ AutoViz.render!(r::RenderModel, veh::BlinkerVehicle, c::Colorant) = render!(r, V
 # Definition of LaneFollowingAccelBlinker action with helpers and propagate
 ############################################################################
 ############################################################################
+const das = [-1.75, -0.5, 0., 0.5, 1.75]
 
 # Define a new action that can set laneid and blinker state
 struct LaneFollowingAccelBlinker
@@ -112,7 +113,7 @@ end
 
     # Defines the stochastic actions of the agents
     ttc_threshold = 5 # threshold through intersection
-    da_dist::Normal = Normal(0,1)# Distributions over acc
+    da_dist::Categorical = Categorical(5)# Distributions over acc
     toggle_goal_dist::Bernoulli = Bernoulli(1e-14) # Distribution over changing goals
     toggle_blinker_dist::Bernoulli = Bernoulli(1e-14) # Distribution over toggling signal
 
@@ -142,9 +143,9 @@ function generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit
 end
 
 # Make a copy of an existing model, while replacing the id, and probabilities
-function generate_TIDM_AST(template::TIDM; p_toggle_blinker, p_toggle_goal, σ2a)
+function generate_TIDM_AST(template::TIDM; p_toggle_blinker, p_toggle_goal, cat_probs)
     TIDM(
-            da_dist = Normal(0,σ2a),
+            da_dist = Categorical(cat_probs),
             toggle_goal_dist = Bernoulli(p_toggle_goal),
             toggle_blinker_dist = Bernoulli(p_toggle_blinker),
             force_action = template.force_action,
@@ -158,7 +159,7 @@ end
 
 # Get the probability density of the specified action
 function action_logprob(model::TIDM, action::LaneFollowingAccelBlinker)
-    a_pd = logpdf(model.da_dist, action.da)
+    a_pd = logpdf(model.da_dist, findfirst(isapprox.(das, action.da)))
     goal_pm = logpdf(model.toggle_goal_dist, action.toggle_goal)
     blinker_pm = logpdf(model.toggle_blinker_dist, action.toggle_blinker)
     tot = a_pd + goal_pm + blinker_pm

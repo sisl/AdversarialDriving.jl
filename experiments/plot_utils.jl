@@ -31,7 +31,7 @@ function plot_scene(scene, models, roadway; egoid = nothing)
         push!(overlays, BlinkerOverlay(on = veh.state.blinker, veh = Vehicle(veh),right=lane_right[li]))
         push!(overlays, TextOverlay(pos = veh.state.veh_state.posG + VecE2(-3, 3), text = [ string("id: ", veh.id, ", goal: ", goal_map[li])], color = colorant"black", incameraframe=true))
     end
-    render(Scene(scene), roadway, overlays, cam=cam, car_colors = car_colors)
+    AutoViz.render(Scene(scene), roadway, overlays, cam=cam, car_colors = car_colors)
 end
 
 function make_interact(scenes, models, roadway; egoid = nothing)
