@@ -13,16 +13,17 @@ for i in 1:length(decomposed)
     println("Solving decomposition ", i)
     pomdp = decomposed[i]
     veh = get_by_id(pomdp.initial_scene, 1)
+    ego = get_by_id(pomdp.initial_scene, 2)
 
     grid = RectangleGrid(
     # Vehicle 1
         range(posf(veh.state).s, stop=63,length=N), # position
-        range(0, stop=29., length=N), # Velocity
+        range(0, stop=29., length=2*N), # Velocity
         pomdp.models[1].goals[laneid(veh)], # Goal
         [0.0, 1.0], # Blinker
     # Vehicle 2
-        range(35, stop=65, length=N), # position
-        range(0., stop=25., length=N), # Velocity
+        range(posf(ego.state).s, stop=65, length=N), # position
+        range(0., stop=25., length=2*N), # Velocity
         [5.0], # Goal
         [1.0], # Blinker
         )
@@ -37,3 +38,4 @@ for i in 1:length(decomposed)
 end
 
 serialize("combined_policies.jls", policies)
+

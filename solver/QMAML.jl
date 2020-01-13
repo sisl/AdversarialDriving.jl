@@ -49,10 +49,19 @@ function sample_all_states(pomdp; rng::AbstractRNG = Random.GLOBAL_RNG)
     S, A, Sp, R, isT
 end
 
+# This function solves the problem for the max
 function Q_Loss(pomdp, Qnet, B = 1)
     S, A, Sp, R, isT  = sample_all_states(pomdp)
     Qval = sum(forward(Qnet, S).*(onehotbatch(A, [1,2,3,4])'), dims = 2)
     target = R .+ (.!isT) .* (discount(pomdp)*dropdims(maximum(forward(Qnet, Sp), dims=2), dims=2))
+    loss = sum((target.data .- Qval).^2)
+end
+
+# this functino solves the problem for
+function Qp_Loss(pomdp, Qnet, B = 1)
+    S, A, Sp, R, isT  = sample_all_states(pomdp)
+    Qpval = sum(forward(Qnet, S).*(onehotbatch(A, [1,2,3,4])'), dims = 2)
+    target = R .+ discount(pomdp)* (.!isT) .* forward(Qnet, Sp)
     loss = sum((target.data .- Qval).^2)
 end
 
