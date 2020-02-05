@@ -33,6 +33,7 @@ X = to_mat([convert_s(g, s) for s in states(g)])
 ideal_model = LinearModel(4)
 fit!(ideal_model, X, values)
 ideal_model_values = [forward(ideal_model, convert_s(g, s)') for s in states(g)]
+ideal_mse = sum((ideal_model_values .- values).^2) / length(values)
 
 mutable struct ISPolicy <: Policy
     mdp
@@ -69,10 +70,9 @@ for i=1:100
     mc_policy_eval(g, is_policy, model, 1, 1)
 end
 
-errs
-
 p2 = render(g, (s=GWPos(1,1), r=1), color = (s) -> 20. *(forward(model, convert_s(g, s)')- 0.5))
 draw(PDF("Gridworld_linear_approx.pdf"), p2)
 
-plot(errs, label = "", ylabel="MSE", xlabel="Iteration", title="Convergance of Linear Policy Eval")
+plot(errs, label = "Online linear model", ylabel="MSE", xlabel="Iteration", title="Convergance of Linear Policy Eval")
+plot!(ones(length(errs))*ideal_mse, label="Ideal MSE")
 
