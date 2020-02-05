@@ -4,10 +4,11 @@ using POMDPs
 using POMDPModelTools
 using GridInterpolations
 using LocalFunctionApproximation
+using Distributions
 
 import POMDPs: Solver, solve, Policy, action, value
 
-mutable struct LocalQpSolver{I<:LocalFunctionApproximator, RNG<:AbstractRNG} <: Solver
+mutable struct LocalPolicyEvalSolver{I<:LocalFunctionApproximator, RNG<:AbstractRNG} <: Solver
     interp::I # Will be copied over by value to each policy
     max_iterations::Int64 # max number of iterations
     belres::Float64 # the Bellman Residual
@@ -18,22 +19,22 @@ mutable struct LocalQpSolver{I<:LocalFunctionApproximator, RNG<:AbstractRNG} <: 
 end
 
 # Default constructor
-function LocalQpSolver(interp::I;
+function LocalPolicyEvalSolver(interp::I;
                                                 max_iterations::Int64=100, belres::Float64=1e-3,
                                                 verbose::Bool=false, rng::RNG=Random.GLOBAL_RNG,
                                                 is_mdp_generative::Bool=false, n_generative_samples::Int64=0) where {I<:LocalFunctionApproximator, RNG<:AbstractRNG}
-    return LocalQpSolver(interp,max_iterations, belres, verbose, rng, is_mdp_generative, n_generative_samples)
+    return LocalPolicyEvalSolver(interp,max_iterations, belres, verbose, rng, is_mdp_generative, n_generative_samples)
 end
 
 # Unparameterized constructor just for getting requirements
-function LocalQpSolver()
-    throw(ArgumentError("LocalQpSolver needs a LocalFunctionApproximator object for construction!"))
+function LocalPolicyEvalSolver()
+    throw(ArgumentError("LocalPolicyEvalSolver needs a LocalFunctionApproximator object for construction!"))
 end
 
 
 # NOTE : We work directly with the value function
 # And extract actions at the end by using the interpolation object
-mutable struct LocalQpPolicy{I<:LocalFunctionApproximator, RNG<:AbstractRNG} <: Policy
+mutable struct LocalPolicyEvalPolicy{I<:LocalFunctionApproximator, RNG<:AbstractRNG} <: Policy
     interp::I # General approximator to be used in VI
     action_map::Vector # Maps the action index to the concrete action type
     mdp::Union{MDP,POMDP} # Uses the model for indexing in the action function
@@ -45,14 +46,14 @@ end
 # The policy can be created using the MDP and solver information
 # The policy's function approximation object (interp) is obtained by deep-copying over the
 # solver's interp object. The other policy parameters are also obtained from the solver
-function LocalQpPolicy(mdp::Union{MDP,POMDP},
-                                                solver::LocalQpSolver)
-    return LocalQpPolicy(deepcopy(solver.interp),ordered_actions(mdp),mdp,
+function LocalPolicyEvalPolicy(mdp::Union{MDP,POMDP},
+                                                solver::LocalPolicyEvalSolver)
+    return LocalPolicyEvalPolicy(deepcopy(solver.interp),ordered_actions(mdp),mdp,
                                                   solver.is_mdp_generative,solver.n_generative_samples,solver.rng)
 end
 
 
-@POMDP_require solve(solver::LocalQpSolver, mdp::Union{MDP,POMDP}) begin
+@POMDP_require solve(solver::LocalPolicyEvalSolver, mdp::Union{MDP,POMDP}) begin
 
     P = typeof(mdp)
     S = statetype(P)
@@ -84,7 +85,7 @@ end
 end
 
 
-function POMDPs.solve(solver::LocalQpSolver, mdp::Union{MDP,POMDP})
+function POMDPs.solve(solver::LocalPolicyEvalSolver, mdp::Union{MDP,POMDP})
 
     @warn_requirements solve(solver, mdp)
 
@@ -99,7 +100,7 @@ function POMDPs.solve(solver::LocalQpSolver, mdp::Union{MDP,POMDP})
     discount_factor = discount(mdp)
 
     # Initialize the policy
-    policy = LocalQpPolicy(mdp,solver)
+    policy = LocalPolicyEvalPolicy(mdp,solver)
 
     total_time = 0.0
     iter_time = 0.0
@@ -162,12 +163,12 @@ function POMDPs.solve(solver::LocalQpSolver, mdp::Union{MDP,POMDP})
                         # Only interpolate sp if it is non-terminal
                             if !isterminal(mdp, sp)
                                 sp_point = POMDPs.convert_s(Vector{Float64}, sp, mdp)
-                                u += p * (discount_factor*compute_value(policy.interp, sp_point))
+                                u += p * (discount_factor*LocalFunctionApproximation.compute_value(policy.interp, sp_point))
                             end
                         end # next-states
                     end
 
-                    total_util += action_probability(mdp, a)*u
+                    total_util += action_probability(mdp, s, a)*u
                 end #action
 
                 # Update this interpolant value
@@ -187,27 +188,28 @@ function POMDPs.solve(solver::LocalQpSolver, mdp::Union{MDP,POMDP})
 end
 
 
-function POMDPs.value(policy::LocalQpPolicy, s::S) where S
+function POMDPs.value(policy::LocalPolicyEvalPolicy, s::S) where S
     # Call the conversion function on the state to get the corresponding vector
     # That represents the point at which to interpolate the function
     s_point = POMDPs.convert_s(Vector{Float64}, s, policy.mdp)
-    val = compute_value(policy.interp, s_point)
+    val = LocalFunctionApproximation.compute_value(policy.interp, s_point)
     return val
 end
 
 # Not explicitly stored in policy - extract from value function interpolation
-function POMDPs.action(policy::LocalQpPolicy, s::S, sample = false) where S
+function POMDPs.action(policy::LocalPolicyEvalPolicy, s::S) where S
     us = [value(policy, s, a) for a in actions(policy.mdp, s)]
     if sum(us) == 0
         us = ones(length(us)) / length(us)
     end
-    a_id = (sample) ? rand(Categorical(us / sum(us))) : argmax(us)
-    return policy.action_map[a_id]
+    us /= sum(us)
+    a_id = rand(Categorical(us))
+    return policy.action_map[a_id], us[a_id]
 end
 
-# Compute the action-value for some state-action pair
+# GlobalApproximationFailureProbe the action-value for some state-action pair
 # This is also used in the above function
-function POMDPs.value(policy::LocalQpPolicy, s::S, a::A) where {S,A}
+function POMDPs.value(policy::LocalPolicyEvalPolicy, s::S, a::A) where {S,A}
 
     mdp = policy.mdp
     discount_factor = discount(mdp)
@@ -220,7 +222,7 @@ function POMDPs.value(policy::LocalQpPolicy, s::S, a::A) where {S,A}
         for j in 1:policy.n_generative_samples
             sp, r = gen(DDNOut(:sp,:r), mdp, s, a, policy.rng)
             sp_point = POMDPs.convert_s(Vector{Float64}, sp, mdp)
-            u += r + discount_factor*compute_value(policy.interp, sp_point)
+            u += r + discount_factor*LocalFunctionApproximation.compute_value(policy.interp, sp_point)
         end
         u = u / policy.n_generative_samples
     else
@@ -233,11 +235,11 @@ function POMDPs.value(policy::LocalQpPolicy, s::S, a::A) where {S,A}
             # Only interpolate sp if it is non-terminal
             if !isterminal(mdp, sp)
                 sp_point = POMDPs.convert_s(Vector{Float64}, sp, mdp)
-                u += p*(discount_factor*compute_value(policy.interp, sp_point))
+                u += p*(discount_factor*LocalFunctionApproximation.compute_value(policy.interp, sp_point))
             end
         end
     end
 
-    return u*action_probability(mdp, a)
+    return u*action_probability(mdp, s, a)
 end
 

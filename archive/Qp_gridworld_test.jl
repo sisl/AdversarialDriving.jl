@@ -17,7 +17,7 @@ g = SimpleGridWorld(size = (10,10), rewards = Dict(
     GWPos(4,5) => 0,
     GWPos(5,6) => 0,
     GWPos(5,3) => 0,
-    ), tprob = 1., discount=1.)
+    ), tprob = 1., discount=0.95)
 s0 = [3,3]
 
 action_probability(mdp::SimpleGridWorld, a) = 0.25
@@ -33,7 +33,8 @@ grid = RectangleGrid(
 
 interp = LocalGIFunctionApproximator(grid)  # Create the local function approximator using the grid
 
-solver = LocalQpSolver(interp, is_mdp_generative = true, n_generative_samples = 1, verbose = true, max_iterations = 1000, belres = 1e-6)
+# solver = LocalQpSolver(interp, is_mdp_generative = true, n_generative_samples = 1, verbose = true, max_iterations = 1000, belres = 1e-6)
+solver = LocalApproximationValueIterationSolver(interp, is_mdp_generative = true, n_generative_samples = 1, verbose = true, max_iterations = 1000, belres = 1e-6)
 
 policy = solve(solver, g)
 
