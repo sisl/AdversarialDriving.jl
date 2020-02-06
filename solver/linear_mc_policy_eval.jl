@@ -108,6 +108,7 @@ function sim(policy::ISPolicy, Neps; verbose = true, max_steps = 1000)
     # ρ is the importance sampling weight of the associated action
     # W is the weight of the trajectory from that state (cumulative)
     S, A, R, G, ρ, W, pf_est = [], [], [], [], [], [], []
+    total_fails = 0
     for i=1:Neps
         verbose && println("   Rolling out episode ", i)
         s = initialstate(mdp)
@@ -127,6 +128,7 @@ function sim(policy::ISPolicy, Neps; verbose = true, max_steps = 1000)
         steps >= max_steps && println("Episode timeout at ", max_steps, " steps")
         Gi = reverse(cumsum(reverse(Ri)))
         Wi = reverse(cumprod(reverse(ρi)))
+        total_fails += Gi[1] > 0
         push!(S, Si[1:end-1]...)
         push!(A, Ai...)
         push!(R, Ri...)
@@ -135,15 +137,16 @@ function sim(policy::ISPolicy, Neps; verbose = true, max_steps = 1000)
         push!(W, Wi...)
         push!(pf_est, pfi...)
     end
-    to_mat(S), A, R, G, ρ, W, pf_est
+    to_mat(S), A, R, G, ρ, W, pf_est, total_fails / Neps
 end
 
 # Fits the correct model based on rollouts
-function mc_policy_eval(policy::ISPolicy, max_iterations, Neps; verbose = true)
+function mc_policy_eval(policy::ISPolicy, max_iterations, Neps; verbose = true, failure_rate_vec = nothing)
     for iter in 1:max_iterations
         verbose && println("iteration: ", iter)
-        X, _, _, G, _, W, pf_est = sim(policy, Neps, verbose = verbose)
+        X, _, _, G, _, W, pf_est, failure_rate = sim(policy, Neps, verbose = verbose)
         y = W .* G .- pf_est
+        !isnothing(failure_rate_vec) && push!(failure_rate_vec, failure_rate)
 
         fit!(policy.corrective_model, X, y)
     end

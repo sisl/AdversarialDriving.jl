@@ -92,10 +92,12 @@ end
 action_dict(mdp::GridworldParty, policy) = Dict(s => action(policy, s) for s in states(mdp))
 
 # Do any agents overlap?
-any_overlap(mdp::GridworldParty, s::Vector{GWPos}) = any([s[i1] == s[i2] && i1 != i2 for i1 in 1:mdp.n_agents, i2 in 1:mdp.n_agents])
+any_overlap(mdp::GridworldParty, s::Vector{GWPos}) = any([s[i1] == s[i2] && i1 > i2 for i1 in 1:mdp.n_agents, i2 in 1:mdp.n_agents])
+all_overlap(mdp::GridworldParty, s::Vector{GWPos}) = all([s[i] == s[1] for i in 1:mdp.n_agents])
 
 # Have all the agents reached their goal?
 all_goal(mdp::GridworldParty, s::Vector{GWPos}) = all([s[i] == mdp.goals[i] for i=1:mdp.n_agents])
+any_goal(mdp::GridworldParty, s::Vector{GWPos}) = any([s[i] == mdp.goals[i] for i=1:mdp.n_agents])
 
 # Whether the scene is terminal or not
 POMDPs.isterminal(mdp::GridworldParty, s::Vector{GWPos}) = any(s .== [GWPos(-1,-1)])
@@ -117,8 +119,10 @@ end
 
 # Returns a sample next state and reward
 function POMDPs.gen(mdp::GridworldParty, s::Vector{GWPos}, a::Vector{Symbol}, rng::AbstractRNG = Random.GLOBAL_RNG)
-    if all_goal(mdp, s) || any_overlap(mdp, s)
-        sp=[GWPos(-1,-1) for i=1:mdp.n_agents]
+    if isterminal(mdp, s)
+        sp = s
+    elseif any_goal(mdp, s) || all_overlap(mdp, s)
+        sp = [GWPos(-1,-1) for i=1:mdp.n_agents]
     else
         sp = [move(mdp, s[i], a[i], rng) for i in 1:mdp.n_agents]
     end
@@ -133,7 +137,7 @@ function POMDPs.reward(mdp::GridworldParty, s::Vector{GWPos})
     if isterminal(mdp, s)
         return 0
     else
-        mdp.reward_type == :normal ? Float64(all_goal(mdp, s)) : Float64(any_overlap(mdp, s))
+        mdp.reward_type == :normal ? Float64(any_goal(mdp, s)) : Float64(all_overlap(mdp, s))
     end
 end
 
@@ -168,18 +172,22 @@ end
 ###### Testing begins here ##########
 mdp = GridworldParty(n_agents = 3, goals = [(1,1), (10,10), (1,10)])
 adv_mdp = GridworldParty(n_agents = 3, goals = [(1,1), (10,10), (1,10)], reward_type = :adversarial)
+mdp2 = GridworldParty(n_agents = 2, goals = [(1,1), (10,10)])
 s = [GWPos(1,1), GWPos(10,10), GWPos(1,10)]
-s2 = [GWPos(1,1), GWPos(10,10), GWPos(10,10)]
+s2 = [GWPos(9,9), GWPos(9,9), GWPos(9,9)]
 s3 = [GWPos(-1,-1), GWPos(-1,-1), GWPos(-1,-1)]
+s4 = [GWPos(1,1), GWPos(5,5)]
+s5 = [GWPos(5,5), GWPos(5,5)]
+s6 = [GWPos(-1,-1), GWPos(-1,-1)]
 
-@test !any_overlap(mdp, s) && any_overlap(mdp, s2)
-@test all_goal(mdp, s) && !all_goal(mdp, s2)
+@test !any_overlap(mdp, s) && any_overlap(mdp, s2) && all_overlap(mdp, s2) && !all_overlap(mdp, s)
+@test all_overlap(mdp2, s5) && !any_overlap(mdp2, s4)
+@test all_goal(mdp, s) && !all_goal(mdp, s2) && any_goal(mdp, s) && !any_goal(mdp, s2)
 @test !isterminal(mdp, s) && !isterminal(mdp, s2) && isterminal(mdp, s3)
 @test length(actions(mdp)) == 4^mdp.n_agents
 @test actionindex(mdp, [:up, :up, :up]) == 1
 @test reward(mdp, s) == 1 && reward(mdp, s2) == 0
 @test reward(adv_mdp, s) == 0 && reward(adv_mdp, s2) == 1
-
 @test snap_to_boundary((10,10), GWPos(0,11)) == GWPos(1,10)
 
 rng = MersenneTwister(0)
@@ -198,3 +206,4 @@ rng = MersenneTwister(0)
 
 @test decompose_indices(3) == [[1,2], [1,3], [2,3]]
 @test length(decompose(mdp)) == 3
+

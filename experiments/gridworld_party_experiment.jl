@@ -29,7 +29,7 @@ grid2 = RectangleGrid( [1:(Nx, Ny)[mod1(i, 2)] for i in 1:4]... ) # Grid used fo
 
 
 ############# Step 1 - Solve for the optimal policy  of the gridworld ############
-policy = solve_mdp(mdp, grid, 5, 10, false)
+policy = solve_mdp(mdp, grid, 10, 30, false)
 
 h1 = simulate(HistoryRecorder(max_steps = 100), mdp, policy)
 @manipulate for t in 1:length(h1)
@@ -38,7 +38,8 @@ h1 = simulate(HistoryRecorder(max_steps = 100), mdp, policy)
 end
 
 ############# Step 2 - Solve for the adversarial policy of the gridworld ############
-a_mdp.a_dict = action_dict(mdp, policy) # create a lookup for what actions the forward mdp agents would have taken
+# create a lookup for what actions the forward mdp agents would have taken
+a_mdp.a_dict = action_dict(mdp, policy)
 a_policy = solve_mdp(a_mdp, grid, 1, 50, true)
 
 # Generate the ground truth probability of failure
@@ -67,7 +68,7 @@ for i in 1:N
 end
 
 # Demonstrate the policy and adversarial policy of the subproblem in saction
-si = 3
+si = 1
 
 s_history = simulate(HistoryRecorder(max_steps = 100), decomps[si], policies[si])
 @manipulate for t in 1:length(s_history)
@@ -121,7 +122,8 @@ is_policy_subprob_max = ISPolicy(a_mdp, LinearModel(length(s_rand)), (mdp, s) ->
 
 N_iter = 15
 N_eps_per_it = 100
-p = plot(title="Convergence of Probability Models", xlabel = string("Number of iterations (", N_eps_per_it, " eps each)"), ylabel="MSE")
+p1 = plot(title="Convergence of Probability Models", xlabel = string("Number of iterations (", N_eps_per_it, " eps each)"), ylabel="MSE")
+p2 = plot(title="Failure Rate of Policy", xlabel = string("Number of iterations (", N_eps_per_it, " eps each)"), ylabel="Failure Fraction")
 X = to_mat([convert_s(AbstractArray, s, a_mdp) for s in states(a_mdp)])
 colors = [:red, :blue, :black, :green]
 policies_to_test = [is_policy_no_estimate, is_policy_subprob_mean, is_policy_subprob_min, is_policy_subprob_max]
@@ -132,27 +134,30 @@ for i=1:N_pol
     println("Evaluating policy: ", policy_names[i])
     pol_to_evaluate = policies_to_test[i]
     err = []
+    failure_rate = []
     for i=1:N_iter
         println("    Evaluating policy after iteration ", i-1)
         is_values = [value(pol_to_evaluate, s) for s in states(a_mdp)]
         push!(err, mse(is_values, pf_ground_truth))
-        mc_policy_eval(pol_to_evaluate, 1, N_eps_per_it, verbose = false)
+        mc_policy_eval(pol_to_evaluate, 1, N_eps_per_it, verbose = false, failure_rate_vec = failure_rate)
     end
     println("    Evaluating policy after iteration ", N_iter)
     is_values = [value(pol_to_evaluate, s) for s in states(a_mdp)]
     push!(err, mse(is_values, pf_ground_truth))
     push!(errs, err)
-    plot!(p, 0:N_iter, err, label = policy_names[i], linecolor = colors[i])
+    plot!(p1, 0:N_iter, err, label = policy_names[i], linecolor = colors[i])
+    plot!(p2, 1:N_iter, failure_rate, label = policy_names[i], linecolor = colors[i])
 
     # Determine the best that this policy could have done
-    ideal_model = LinearModel(length(s_rand))
-    estimates = [pol_to_evaluate.estimate(a_mdp, s) for s in states(a_mdp)]
-    fit!(ideal_model, X, pf_ground_truth .- estimates)
-    ideal_model_vals = estimates .+ [forward(ideal_model, convert_s(AbstractArray, s, a_mdp)') for s in states(a_mdp)]
-    ideal_err = mse(ideal_model_vals, pf_ground_truth)
-    plot!(0:N_iter, ones(N_iter+1)*ideal_err, label = string(policy_names[i], " -- ideal"), linecolor = colors[i], linestyle = :dash)
+    # ideal_model = LinearModel(length(s_rand))
+    # estimates = [pol_to_evaluate.estimate(a_mdp, s) for s in states(a_mdp)]
+    # fit!(ideal_model, X, pf_ground_truth .- estimates)
+    # ideal_model_vals = max.(0, min.(1, estimates .+ [forward(ideal_model, convert_s(AbstractArray, s, a_mdp)') for s in states(a_mdp)]))
+    # ideal_err = mse(ideal_model_vals, pf_ground_truth)
+    # plot!(0:N_iter, ones(N_iter+1)*ideal_err, label = string(policy_names[i], " -- ideal"), linecolor = colors[i], linestyle = :dash)
 end
-plot(p)
+plot(plot(p1, yscale = :log), plot(p2), size = (1200, 400))
+
 errs
 
 savefig("gridworld_party_comparisons.pdf")
