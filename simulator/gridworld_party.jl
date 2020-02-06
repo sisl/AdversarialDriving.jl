@@ -66,6 +66,7 @@ end
 
 
 # Convert back and forth between vector representations
+POMDPs.convert_s(::Type{AbstractArray}, s::Vector{GWPos}, mdp::GridworldParty) = vcat([Float64.(pos) for pos in s]...)
 POMDPs.convert_s(::Type{Vector{Float64}}, s::Vector{GWPos}, mdp::GridworldParty) = vcat([Float64.(pos) for pos in s]...)
 POMDPs.convert_s(::Type{Vector{GWPos}}, s::AbstractArray{Float64}, mdp::GridworldParty) = [GWPos(s[2*i - 1], s[2*i]) for i in 1:mdp.n_agents]
 
@@ -113,24 +114,28 @@ function move(mdp::GridworldParty, s::GWPos, a::Symbol, rng::AbstractRNG = Rando
     snap_to_boundary(mdp.size, sp)
 end
 
+
 # Returns a sample next state and reward
 function POMDPs.gen(mdp::GridworldParty, s::Vector{GWPos}, a::Vector{Symbol}, rng::AbstractRNG = Random.GLOBAL_RNG)
     if all_goal(mdp, s) || any_overlap(mdp, s)
-        return (sp=[GWPos(-1,-1) for i=1:mdp.n_agents], r=0.)
+        sp=[GWPos(-1,-1) for i=1:mdp.n_agents]
+    else
+        sp = [move(mdp, s[i], a[i], rng) for i in 1:mdp.n_agents]
     end
-
-    sp = Vector{GWPos}(undef, mdp.n_agents)
-    for i=1:mdp.n_agents
-        sp[i] = move(mdp, s[i], a[i], rng)
-    end
-    r = reward(mdp, sp)
+    r = reward(mdp, s)
 
     (sp=sp, r=r)
 end
+POMDPs.gen(::DDNOut{(:sp, :r)}, mdp::GridworldParty, s::Vector{GWPos}, a::Vector{Symbol}, rng::AbstractRNG = Random.GLOBAL_RNG) = gen(mdp, s, a, rng)
 
 # Returns the reward for the provided state
-POMDPs.reward(mdp::GridworldParty, s::Vector{GWPos}) = mdp.reward_type == :normal ? Float64(all_goal(mdp, s)) : Float64(any_overlap(mdp, s))
-
+function POMDPs.reward(mdp::GridworldParty, s::Vector{GWPos})
+    if isterminal(mdp, s)
+        return 0
+    else
+        mdp.reward_type == :normal ? Float64(all_goal(mdp, s)) : Float64(any_overlap(mdp, s))
+    end
+end
 
 # Renders the gridworld
 function POMDPModelTools.render(mdp::GridworldParty, s::Vector{GWPos}; agent_colors = ["blue", "orange", "purple", "yellow"])
@@ -191,6 +196,5 @@ rng = MersenneTwister(0)
 
 @test length(states(mdp)) == 100^3
 
-decompose_indices(n_agents)
-decomps = decompose(mdp)
-
+@test decompose_indices(3) == [[1,2], [1,3], [2,3]]
+@test length(decompose(mdp)) == 3
