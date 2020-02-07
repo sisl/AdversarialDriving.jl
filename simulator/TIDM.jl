@@ -65,7 +65,6 @@ AutoViz.render!(r::RenderModel, veh::BlinkerVehicle, c::Colorant) = render!(r, V
 # Definition of LaneFollowingAccelBlinker action with helpers and propagate
 ############################################################################
 ############################################################################
-const das = [-1.75, -0.5, 0., 0.5, 1.75]
 
 # Define a new action that can set laneid and blinker state
 struct LaneFollowingAccelBlinker
@@ -113,7 +112,7 @@ end
 
     # Defines the stochastic actions of the agents
     ttc_threshold = 5 # threshold through intersection
-    da_dist::Categorical = Categorical(5)# Distributions over acc
+    da_dist::DiscreteNonParametric = DiscreteNonParametric([-1.75, -0.5, 0., 0.5, 1.75], [0.025, 0.075, 0.8, 0.075, 0.025])# Distributions over acc
     toggle_goal_dist::Bernoulli = Bernoulli(1e-14) # Distribution over changing goals
     toggle_blinker_dist::Bernoulli = Bernoulli(1e-14) # Distribution over toggling signal
 
@@ -143,9 +142,9 @@ function generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit
 end
 
 # Make a copy of an existing model, while replacing the id, and probabilities
-function generate_TIDM_AST(template::TIDM; p_toggle_blinker, p_toggle_goal, cat_probs)
+function generate_TIDM_AST(template::TIDM; p_toggle_blinker, p_toggle_goal, da_dist)
     TIDM(
-            da_dist = Categorical(cat_probs),
+            da_dist = da_dist,
             toggle_goal_dist = Bernoulli(p_toggle_goal),
             toggle_blinker_dist = Bernoulli(p_toggle_blinker),
             force_action = template.force_action,
@@ -159,7 +158,9 @@ end
 
 # Get the probability density of the specified action
 function action_logprob(model::TIDM, action::LaneFollowingAccelBlinker)
-    a_pd = logpdf(model.da_dist, findfirst(isapprox.(das, action.da)))
+    possible_vals = support(model.da_dist)
+    closest_action = possible_vals[findfirst(support(model.da_dist) .>= action.da)]
+    a_pd = logpdf(model.da_dist, closest_action)
     goal_pm = logpdf(model.toggle_goal_dist, action.toggle_goal)
     blinker_pm = logpdf(model.toggle_blinker_dist, action.toggle_blinker)
     tot = a_pd + goal_pm + blinker_pm
@@ -167,20 +168,12 @@ function action_logprob(model::TIDM, action::LaneFollowingAccelBlinker)
     tot
 end
 
-# Gets a random action from the model, ignoring the force flag
-function random_action(model::TIDM, rng::AbstractRNG = Random.GLOBAL_RNG)
-    da = rand(rng, model.da_dist)
-    toggle_goal = rand(rng, model.toggle_goal_dist)
-    toggle_blinker = rand(rng, model.toggle_blinker_dist)
-    LaneFollowingAccelBlinker(model.idm.a, da, toggle_goal, toggle_blinker)
-end
-
 # Sample an action from TIDM model
 function Base.rand(rng::AbstractRNG, model::TIDM)
     if model.force_action # Use the forced actions
         LaneFollowingAccelBlinker(model.idm.a, model.da_force, model.toggle_goal_force, model.toggle_blinker_force)
     else # sample actions from the distributions
-        random_action(model, rng)
+        LaneFollowingAccelBlinker(model.idm.a, rand(rng, model.da_dist), rand(rng, model.toggle_goal_dist), rand(rng, model.toggle_blinker_dist))
     end
  end
 

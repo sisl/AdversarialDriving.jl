@@ -20,13 +20,7 @@ function sum_prob(mdp, a)
 end
 
 
-function random_action(policy, o, sample)
-    pomdp = policy.mdp
-    probs = [action_probability(pomdp, a) for a in actions(pomdp,o)]
-    probs = probs ./ sum(probs)
 
-    rand(Categorical(probs))
-end
 
 # Generates a joint action from the individual policies. Supply an action function for individual action selection
 function joint_policy(combined_pomdp, policies, o::Vector{Float64}, ind_policy, sample)

@@ -8,11 +8,11 @@ goal_map = Dict(1 => "turn right", 2 =>"straight", 3=>"straight", 4=>"turn left"
 
 # whether the signal is on the right side
 lane_right = Dict(
-    1=> true,
-    2=>true,
-    3=>false,
-    4=> false,
-    5=> false,
+    1 => true,
+    2 => true,
+    3 => false,
+    4 => false,
+    5 => false,
     6 => true
     )
 
