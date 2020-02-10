@@ -35,6 +35,7 @@ end
 const BlinkerScene = Frame{BlinkerVehicle}
 BlinkerScene(n::Int=100) = Frame(BlinkerVehicle, n)
 
+# decomposes the scene into the vehicles indicated by the indices
 function decompose_scene(scene::BlinkerScene, ids::Vector{Int})
     new_scene = BlinkerScene()
     count = 1
@@ -44,6 +45,22 @@ function decompose_scene(scene::BlinkerScene, ids::Vector{Int})
     end
     new_scene
 end
+
+# Decomposes the scene into each agent paired with the ego vehicle
+# The ego vehicle is assumed to be the last vehicle in the scene
+# TODO fix this
+function decompose_scene(scene::BlinkerScene, egoid::Int)
+    scenes = Dict{Int, BlinkerScene}()
+    if has_veh(egoid, scene)
+        for i=1:egoid-1
+            if has_veh(i, scene)
+                scenes[i] = decompose_scene(scene, [i,egoid])
+            end
+        end
+    end
+    scenes
+end
+
 
 # Convert BlinkerVehicle to Vehicle
 AutomotiveDrivingModels.Vehicle(b::BlinkerVehicle) = Vehicle(b.state.veh_state, b.def, b.id)

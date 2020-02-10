@@ -84,41 +84,23 @@ end
 
 
 ############ Step 4 - Perform a global correction #####################
-function subproblem_estimate(policies, s::Vector{GWPos}, combination_style = :mean)
-    # Get the probability of failure estimate from the subproblems
-    indices = decompose_indices(length(s))
-    N_subproblems = length(indices)
-    V = 0
-    for i in 1:N_subproblems
-        val = value(policies[i], s[indices[i]])
+Vest_mean = subproblem_estimate_fn(policies, decompose_state, :mean)
+Vest_min = subproblem_estimate_fn(policies, decompose_state, :min)
+Vest_max = subproblem_estimate_fn(policies, decompose_state, :max)
 
-        # Average
-        if combination_style == :mean
-            V += val/N_subproblems
-        elseif combination_style == :min
-            V = (i==1) ? val : min(val, V)
-        elseif combination_style == :max
-            V = (i==1) ? val : max(val, V)
-        else
-            error("unrecognized combination style: ", combination_style)
-        end
-    end
-    V
-end
-
-subproblem_values_mean = [subproblem_estimate(policies, s, :mean) for s in states(a_mdp)]
+subproblem_values_mean = [Vest_mean(s) for s in states(a_mdp)]
 err_subproblem_mean = mse(subproblem_values_mean, pf_ground_truth)
-subproblem_values_min = [subproblem_estimate(policies, s, :min) for s in states(a_mdp)]
+subproblem_values_min = [Vest_min(s) for s in states(a_mdp)]
 err_subproblem_min = mse(subproblem_values_mean, pf_ground_truth)
-subproblem_values_max = [subproblem_estimate(policies, s, :max) for s in states(a_mdp)]
+subproblem_values_max = [Vest_max(s) for s in states(a_mdp)]
 err_subproblem_max = mse(subproblem_values_max, pf_ground_truth)
 
 
 s_rand = convert_s(Vector{Float64},  initialstate(a_mdp), a_mdp)
-is_policy_no_estimate = ISPolicy(a_mdp, LinearModel(length(s_rand)), (mdp, s) -> 0)
-is_policy_subprob_mean = ISPolicy(a_mdp, LinearModel(length(s_rand)), (mdp, s) -> subproblem_estimate(policies, s, :mean))
-is_policy_subprob_min = ISPolicy(a_mdp, LinearModel(length(s_rand)), (mdp, s) -> subproblem_estimate(policies, s, :min))
-is_policy_subprob_max = ISPolicy(a_mdp, LinearModel(length(s_rand)), (mdp, s) -> subproblem_estimate(policies, s, :max))
+is_policy_no_estimate = ISPolicy(a_mdp, LinearModel(length(s_rand)), (s) -> 0)
+is_policy_subprob_mean = ISPolicy(a_mdp, LinearModel(length(s_rand)), Vest_mean)
+is_policy_subprob_min = ISPolicy(a_mdp, LinearModel(length(s_rand)), Vest_min)
+is_policy_subprob_max = ISPolicy(a_mdp, LinearModel(length(s_rand)), Vest_max)
 
 N_iter = 15
 N_eps_per_it = 100
@@ -139,7 +121,7 @@ for i=1:N_pol
         println("    Evaluating policy after iteration ", i-1)
         is_values = [value(pol_to_evaluate, s) for s in states(a_mdp)]
         push!(err, mse(is_values, pf_ground_truth))
-        mc_policy_eval(pol_to_evaluate, 1, N_eps_per_it, verbose = false, failure_rate_vec = failure_rate)
+        mc_policy_eval!(pol_to_evaluate, 1, N_eps_per_it, verbose = false, failure_rate_vec = failure_rate)
     end
     println("    Evaluating policy after iteration ", N_iter)
     is_values = [value(pol_to_evaluate, s) for s in states(a_mdp)]

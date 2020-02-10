@@ -35,27 +35,28 @@ Xall = to_mat([convert_s(AbstractArray, s, g) for s in states(g)])
 ideal_model = LinearModel(4)
 fit!(ideal_model, Xall, values)
 ideal_model_values = [forward(ideal_model, convert_s(AbstractArray, s, g)') for s in states(g)]
-ideal_mse = mse(ideal_model_values, values)
+ideal_relerr = relerr(ideal_model_values, values)
 
 
 s_rand = convert_s(AbstractArray, rand(initialstate_distribution(g)), g)
 model = LinearModel(length(s_rand))
 rand_est = Dict(s => rand() for s in states(g))
-is_policy = ISPolicy(g, model, (mdp, s) -> 0.5)
+is_policy = ISPolicy(g, model, (s) -> 0)
 
 errs = []
 for i=1:10
     is_values = [value(is_policy, s) for s in states(g)]
-    push!(errs, mse(is_values, values))
-    mc_policy_eval(g, is_policy, 1, 10)
+    push!(errs, relerr(is_values, values))
+    mc_policy_eval!(is_policy, 1, 10)
 end
 
-push!(errs, mse(is_values, values))
+is_values = [value(is_policy, s) for s in states(g)]
+push!(errs, relerr(is_values, values))
 
 p2 = render(g, (s=GWPos(1,1), r=1), color = (s) -> 20. *(value(is_policy, s)- 0.5))
 draw(PDF("Gridworld_linear_approx.pdf"), p2)
 
-plot(errs, label = "Online linear model", ylabel="MSE", xlabel="Iteration", title="Convergance of Linear Policy Eval")
-plot!(ones(length(errs))*ideal_mse, label="Ideal MSE")
+plot(errs, label = "Online linear model", ylabel="Rel Error", xlabel="Iteration", title="Convergance of Linear Policy Eval")
+plot!(ones(length(errs))*ideal_relerr, label="Ideal Rel Error")
 savefig("Gridworld_convergence_of_linear_model.pdf")
 

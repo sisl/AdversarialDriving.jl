@@ -28,6 +28,8 @@ end
 
 AdversarialGridworldParty(mdp::GridworldParty) = GridworldParty(n_agents = mdp.n_agents, size = mdp.size, goals = mdp.goals, tprob = mdp.tprob, discount = 1.0, reward_type = :adversarial,)
 
+# Gets the pairwise combination of indices
+# 3 agents would be [[1,2], [1,3], [2,3]]
 function decompose_indices(n_agents)
     indices = []
     for ij in CartesianIndices((n_agents, n_agents))
@@ -38,6 +40,13 @@ function decompose_indices(n_agents)
     indices
 end
 
+# Decompse the state into the subproblem states
+function decompose_state(s::Vector{GWPos})
+    indices = decompose_indices(length(s))
+    Dict(i => s[indices[i]] for i in 1:length(indices))
+end
+
+# Decompose the mdp into sub-problem mdps
 function decompose(mdp::GridworldParty)
     indices = decompose_indices(mdp.n_agents)
     mdps = Array{GridworldParty}(undef, 0)
@@ -151,7 +160,7 @@ function POMDPModelTools.render(mdp::GridworldParty, s::Vector{GWPos}; agent_col
         cell = compose(ctx, rectangle(), fill(!isnothing(index) ? agent_colors[index] : "white"))
         push!(cells, cell)
     end
-    grid = compose(context(), stroke("gray"), cells...)
+    grid = compose(context(), Compose.stroke("gray"), cells...)
     outline = compose(context(), rectangle())
 
     i = 1
@@ -159,7 +168,7 @@ function POMDPModelTools.render(mdp::GridworldParty, s::Vector{GWPos}; agent_col
     for pos in s
         x,y = pos
         agent_ctx = context((x-1)/nx, (ny-y)/ny, 1/nx, 1/ny)
-        agent = compose(agent_ctx, circle(0.5, 0.5, 0.4), stroke("black"), fill(agent_colors[i]))
+        agent = compose(agent_ctx, circle(0.5, 0.5, 0.4), Compose.stroke("black"), fill(agent_colors[i]))
         push!(agents, agent)
         i += 1
     end

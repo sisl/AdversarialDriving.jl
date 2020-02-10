@@ -151,6 +151,9 @@ function step_scene(pomdp::AdversarialADM, s::BlinkerScene, actions::Atype, rng:
     return new_scene
 end
 
+POMDPs.gen(::DDNOut{(:sp, :r)}, mdp::AdversarialADM, s::BlinkerScene, a::Atype, rng::AbstractRNG = Random.GLOBAL_RNG) = gen(mdp, s, a, rng)
+
+
 # The generative interface to the POMDP
 function POMDPs.gen(pomdp::AdversarialADM, s::BlinkerScene, a::Atype, rng::Random.AbstractRNG = Random.GLOBAL_RNG)
     # Simulate the scene forward one timestep
@@ -161,10 +164,10 @@ function POMDPs.gen(pomdp::AdversarialADM, s::BlinkerScene, a::Atype, rng::Rando
     r = reward(pomdp, s, a, sp)
 
     # Extract the observations
-    o = convert_s(Array{Float64,1}, sp, pomdp)
+    # o = convert_s(Array{Float64,1}, sp, pomdp)
 
     # Return
-    (sp=sp, o=o, r=r)
+    (sp=sp, r=r)
 end
 
 # Discount factor for the POMDP (Set to 1 because of the finite horizon)

@@ -4,7 +4,7 @@ using POMDPs
 using Plots
 using GridInterpolations
 using LocalFunctionApproximation
-include("../solver/local_approx_Qp.jl")
+include("../solver/local_approx_policy_eval.jl")
 using Serialization
 using LinearAlgebra
 using Distributions
