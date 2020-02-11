@@ -60,10 +60,11 @@ relerr(est, truth) = sum(abs.(est .- truth) ./ max.(truth, est)) / length(truth)
 
 # Definea special type of policy that uses a model, and has a probability of failure
 # estimator defined by the user. This estimator will be filled in by the subproblems
-mutable struct ISPolicy <: Policy
+@with_kw mutable struct ISPolicy <: Policy
     mdp # The mdp this problem is associated with
     corrective_model # Model that corrects for deviations from the observed probabilty of failure
     estimate # Estimate of the failure probability. Function of the form estimate(mdp, s)
+    N_actions = :all # Number of actions to sample
 end
 
 # Computes the estimated probability of failure at the provided state
@@ -76,19 +77,20 @@ end
 
 # Selects an action to take according to the probability of failure
 function POMDPs.action(p::ISPolicy, s, rng = Random.GLOBAL_RNG)
-    # TODO: We probably need a way to sample actions instead of enumerating
     as = actions(p.mdp, s)
-    Na = length(as)
-    pf = Array{Float64}(undef, Na)
-    for i=1:Na
+    N = length(as)
+    p.N_actions != :all && (as = sample(rng, as, p.N_actions, replace=false))
+    k = length(as)
+    pf = Array{Float64}(undef, k)
+    for i=1:k
         a = as[i]
         sp, r = gen(DDNOut((:sp,:r)), p.mdp, s, a, rng)
         pf[i] = action_probability(p.mdp, s, a)*value(p, sp)
     end
     sum_pf = sum(pf)
-    pf = (sum_pf == 0) ? ones(Na)/Na : pf/sum_pf
+    pf = (sum_pf == 0) ? ones(k)/k : pf/sum_pf
     ai = rand(Categorical(pf))
-    as[ai], pf[ai]
+    as[ai], pf[ai]*k / N
 end
 
 # Convert an array of states into a state matrix

@@ -5,3 +5,4 @@ deps/deps.jl
 *.jls
 *.gif
 *.pdf
+.DS_Store

@@ -13,10 +13,11 @@ Vest_min = subproblem_estimate_fn(policies, (s) -> decompose_scene(s, combined.e
 Vest_max = subproblem_estimate_fn(policies, (s) -> decompose_scene(s, combined.egoid), :max)
 
 Ns = length(convert_s(Vector{Float64},  initialstate(combined), combined))
-is_policy_no_estimate = ISPolicy(combined, LinearModel(Ns), (s) -> 0)
-is_policy_subprob_mean = ISPolicy(combined, LinearModel(Ns), Vest_mean)
-is_policy_subprob_min = ISPolicy(combined, LinearModel(Ns), Vest_min)
-is_policy_subprob_max = ISPolicy(combined, LinearModel(Ns), Vest_max)
+is_policy_no_estimate = ISPolicy(combined, LinearModel(Ns), (s) -> 0, 100)
+is_policy_subprob_mean = ISPolicy(combined, LinearModel(Ns), Vest_mean, 100)
+is_policy_subprob_min = ISPolicy(combined, LinearModel(Ns), Vest_min, 100)
+is_policy_subprob_max = ISPolicy(combined, LinearModel(Ns), Vest_max, 100)
+
 
 N_iter = 15
 N_eps_per_it = 100
