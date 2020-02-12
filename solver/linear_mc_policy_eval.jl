@@ -76,7 +76,7 @@ function POMDPs.value(p::ISPolicy, s)
 end
 
 # Selects an action to take according to the probability of failure
-function POMDPs.action(p::ISPolicy, s, rng = Random.GLOBAL_RNG)
+function action_and_prob(p::ISPolicy, s, rng = Random.GLOBAL_RNG)
     as = actions(p.mdp, s)
     N = length(as)
     p.N_actions != :all && (as = sample(rng, as, p.N_actions, replace=false))
@@ -92,6 +92,8 @@ function POMDPs.action(p::ISPolicy, s, rng = Random.GLOBAL_RNG)
     ai = rand(Categorical(pf))
     as[ai], pf[ai]*k / N
 end
+
+POMDPs.action(p::ISPolicy, s, rng = Random.GLOBAL_RNG) = action_and_prob(p, s, rng)[1]
 
 # Convert an array of states into a state matrix
 # NOTE: For some reason using vcat is very slow so we do it this way
@@ -125,6 +127,26 @@ function subproblem_estimate_fn(policies, decompose_state, combination_style = :
     end
 end
 
+function bellman_residual(mdp, S, V)
+    as = actions(mdp)
+    residuals = []
+    for s in S
+        Vlhs = V(s)
+
+        if isterminal(mdp, s)
+            push!(residuals, abs(Vlhs - iscollision(mdp, s)))
+            continue
+        end
+
+        Vrhs = 0
+        for a in as
+            sp, r = gen(DDNOut((:sp, :r)), mdp, s, a, rng)
+            Vrhs += action_probability(mdp, s, a)*V(sp)
+        end
+        push!(residuals, abs(Vrhs - Vlhs))
+    end
+    residuals
+end
 
 # Simulate the mdp through Neps episodes.
 # Requires ISPolicy because it stores the failure probability estimates at each timestep
@@ -141,7 +163,7 @@ function sim(policy::ISPolicy, Neps; verbose = true, max_steps = 1000)
         steps = 0
         while !isterminal(mdp, s)
             push!(pfi, policy.estimate(s))
-            a, prob = action(policy, s)
+            a, prob = action_and_prob(policy, s)
             push!(Ai, a)
             push!(ρi, action_probability(mdp, s, a) / prob)
             s, r = gen(DDNOut((:sp, :r)), mdp, s, a)
@@ -162,12 +184,12 @@ function sim(policy::ISPolicy, Neps; verbose = true, max_steps = 1000)
         push!(W, Wi...)
         push!(pf_est, pfi...)
     end
-    to_mat(S), A, R, G, ρ, W, pf_est, total_fails / Neps
+    to_mat(S), A, R, G, ρ, W, pf_est, total_fails
 end
 
 # Fits the correct model based on rollouts
-function mc_policy_eval!(policy::ISPolicy, max_iterations, Neps; verbose = true, failure_rate_vec = nothing)
-    for iter in 1:max_iterations
+function mc_policy_eval!(policy::ISPolicy, iterations, Neps; verbose = true, failure_rate_vec = nothing)
+    for iter in 1:iterations
         verbose && println("iteration: ", iter)
         X, _, _, G, _, W, pf_est, failure_rate = sim(policy, Neps, verbose = verbose)
         y = W .* G .- pf_est

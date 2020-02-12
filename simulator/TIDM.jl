@@ -186,8 +186,8 @@ function action_logprob(model::TIDM, action::LaneFollowingAccelBlinker)
 end
 
 # Sample an action from TIDM model
-function Base.rand(rng::AbstractRNG, model::TIDM)
-    if model.force_action # Use the forced actions
+function Base.rand(rng::AbstractRNG, model::TIDM; ignore_force = false)
+    if model.force_action && !ignore_force # Use the forced actions
         LaneFollowingAccelBlinker(model.idm.a, model.da_force, model.toggle_goal_force, model.toggle_blinker_force)
     else # sample actions from the distributions
         LaneFollowingAccelBlinker(model.idm.a, rand(rng, model.da_dist), rand(rng, model.toggle_goal_dist), rand(rng, model.toggle_blinker_dist))

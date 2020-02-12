@@ -7,7 +7,7 @@ using Serialization
 
 decomposed, combined = generate_decomposed_scene(dt = 0.18)
 policies = Array{Any}(undef, length(decomposed))
-N = 10
+N = 20
 
 for i in 1:length(decomposed)
     println("Solving decomposition ", i)

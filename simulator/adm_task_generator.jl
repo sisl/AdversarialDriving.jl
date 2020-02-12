@@ -7,8 +7,8 @@ function generate_decomposed_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
     # Create the roadway
     roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy = generate_T_intersection()
     template = generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
-    support = [-1.75, -0.5, 0., 0.5, 1.75]
-    stochastic_probs = [0.025, 0.075, 0.8, 0.075, 0.025]
+    support = [-3, -1.5, 0., 1.5, 3]
+    stochastic_probs = [1e-4, 1e-2, 1 - (2e-4 + 2e-2), 1e-2, 1e-4]
     deterministic_probs = [0., 0., 1., 0., 0.]
 
 
@@ -27,13 +27,14 @@ function generate_decomposed_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
     vehicles = [BV(VecSE2(polar(20.0,-π) - dy, 0), 15., goals[2], 2, false, 1, roadway),
                 BV(VecSE2(polar(35.0,-π) - dy, 0), 15., goals[2], 2, false, 1, roadway),
                 BV(VecSE2(polar(50.0,-π) - dy, 0), 15., goals[2], 2, false, 1, roadway),
-                BV(VecSE2(polar(20.0, 0) + dy, -π), 15., goals[4], 4, true, 1, roadway),
+                BV(VecSE2(polar(10.0, 0) + dy, -π), 15., goals[4], 4, true, 1, roadway),
                 ]
-
-    models = [generate_TIDM_AST(template, p_toggle_blinker = 1e-2, p_toggle_goal = 1e-2, da_dist = DiscreteNonParametric(support, stochastic_probs)),
-              generate_TIDM_AST(template, p_toggle_blinker = 1e-2, p_toggle_goal = 1e-2, da_dist = DiscreteNonParametric(support, stochastic_probs)),
-              generate_TIDM_AST(template, p_toggle_blinker = 1e-2, p_toggle_goal = 1e-2, da_dist = DiscreteNonParametric(support, stochastic_probs)),
-              generate_TIDM_AST(template, p_toggle_blinker = 1e-2, p_toggle_goal = 1e-2, da_dist = DiscreteNonParametric(support, stochastic_probs))]
+    p_blink = 1e-4
+    p_goal= 1e-4
+    models = [generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs)),
+              generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs)),
+              generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs)),
+              generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs))]
 
     combined_scene = BlinkerScene()
     combined_models = Dict{Int, DriverModel}()

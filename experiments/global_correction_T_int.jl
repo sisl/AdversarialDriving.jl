@@ -19,8 +19,8 @@ is_policy_subprob_min = ISPolicy(combined, LinearModel(Ns), Vest_min, 100)
 is_policy_subprob_max = ISPolicy(combined, LinearModel(Ns), Vest_max, 100)
 
 
-N_iter = 15
-N_eps_per_it = 100
+N_iter = 150
+N_eps_per_it = 10
 p = plot(title="Failure Rate of Policy", xlabel = string("Number of iterations (", N_eps_per_it, " eps each)"), ylabel="Failure Fraction")
 colors = [:red, :blue, :black, :green]
 policies_to_test = [is_policy_no_estimate, is_policy_subprob_mean, is_policy_subprob_min, is_policy_subprob_max]

@@ -4,7 +4,7 @@ const OBS_PER_VEH = 4
 const ACT_PER_VEH = 7
 const Atype = Array{LaneFollowingAccelBlinker}
 
-mutable struct AdversarialADM <: POMDP{BlinkerScene, Atype, Array{Float64}}
+mutable struct AdversarialADM <: MDP{BlinkerScene, Atype}
     num_vehicles # The number of vehicles represented in the state and action spaces
     num_controllable_vehicles # Number of vehicles that will be part of the action space
     models # The models for the simulation
@@ -67,6 +67,18 @@ POMDPs.actionindex(pomdp::AdversarialADM, a::Atype) = pomdp.action_to_index[a]
 
 action_probability(pomdp::AdversarialADM, s::BlinkerScene, a::Atype) = prod([exp(action_logprob(pomdp.models[i], a[i])) for i in 1:pomdp.num_controllable_vehicles])
 
+# Gets an action according to true probabilities of the agents
+function random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::Random.AbstractRNG)
+    as = fill(LaneFollowingAccelBlinker(0,0,false,false), pomdp.num_vehicles)
+    for (i, veh) in enumerate(s)
+        model = pomdp.models[veh.id]
+        observe!(model, s, pomdp.roadway, veh.id)
+        a = rand(rng, model, ignore_force = true)
+        as[veh.id] = a
+    end
+    as
+end
+
 # Converts from vector to state
 function POMDPs.convert_s(::Type{BlinkerScene}, s::AbstractArray{Float64}, pomdp::AdversarialADM)
     new_scene = BlinkerScene()
@@ -118,6 +130,9 @@ POMDPs.convert_s(::Type{AbstractArray}, state::BlinkerScene, pomdp::AdversarialA
 
 # Returns the intial state of the pomdp simulator
 POMDPs.initialstate(pomdp::AdversarialADM, rng::AbstractRNG = Random.GLOBAL_RNG) = pomdp.initial_scene
+
+# Returns a deterministic distribution to be sampled by a simulator
+POMDPs.initialstate_distribution(pomdp::AdversarialADM) = Deterministic(pomdp.initial_scene)
 
 # Get the reward from the actions taken and the next state
 POMDPs.reward(pomdp::AdversarialADM, s::BlinkerScene, a::Atype, sp::BlinkerScene) = iscollision(pomdp, sp)
@@ -179,37 +194,4 @@ iscollision(pomdp::AdversarialADM, s::BlinkerScene) = length(s) > 0 && ego_colli
 # The simulation is terminal if there is collision with the ego vehicle or if the maximum simulation time has been reached
 function POMDPs.isterminal(pomdp::AdversarialADM, s::BlinkerScene)
     length(s) == 0 || iscollision(pomdp, s)
-end
-
-
-### Deal with the actions
-
-# Rollout a policy and return the observations, actions and rewards
-function policy_rollout(pomdp::AdversarialADM, policy, s0; save_scenes = false)
-    # Setup vectors to store episode information
-    Nmax, osz, asz = 300, o_dim(pomdp), 1
-    observations = Array{Float64, 2}(undef, Nmax, osz)
-    actions = Array{Any}(undef, Nmax)
-    rewards = Array{Float64}(undef, Nmax)
-    scenes = []
-
-    # Setup initial state and observation
-    s, o = s0, convert_s(Vector{Float64}, s0, pomdp)
-
-    i = 0
-    while !isterminal(pomdp, s)
-        save_scenes && push!(scenes,s)
-        i += 1
-        observations[i, :] .= o
-        a = policy(o)
-        actions[i] = a
-        s, o, r = gen(pomdp, s, a)
-        rewards[i] = r
-    end
-    save_scenes && push!(scenes, s)
-    if !save_scenes
-        return view(observations, 1:i, :), view(actions, 1:i), view(rewards, 1:i)
-    else
-        return view(observations, 1:i, :), view(actions, 1:i), view(rewards, 1:i), scenes
-    end
 end

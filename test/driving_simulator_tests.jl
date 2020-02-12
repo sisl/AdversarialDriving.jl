@@ -39,7 +39,7 @@ end
 @test all([pomdp.models[i].force_action == true for i in 1:4])
 @test support(decomposed[1].models[1].da_dist) == [-1.75, -0.5, 0., 0.5, 1.75]
 @test support(decomposed[1].models[2].da_dist) == [-1.75, -0.5, 0., 0.5, 1.75]
-@test probs(decomposed[1].models[1].da_dist) == [0.025, 0.075, 0.8, 0.075, 0.025]
+@test probs(decomposed[1].models[1].da_dist) == [1e-4, 1e-2, 1 - (2e-4 + 2e-2), 1e-2, 1e-4]
 @test probs(decomposed[1].models[2].da_dist) == [0,0,1,0,0]
 @test decomposed[1].models[1].toggle_goal_dist == Bernoulli(1e-2)
 @test decomposed[1].models[2].toggle_goal_dist == Bernoulli(0)
