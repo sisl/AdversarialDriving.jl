@@ -17,13 +17,13 @@ for i in 1:length(decomposed)
 
     grid = RectangleGrid(
     # Vehicle 1
-        range(posf(veh.state).s, stop=63,length=N), # position
-        range(0, stop=29., length=N), # Velocity
+        range(posf(veh.state).s, stop=70,length=N), # position
+        range(0, stop=35., length=N), # Velocity
         pomdp.models[1].goals[laneid(veh)], # Goal
         [0.0, 1.0], # Blinker
     # Vehicle 2
-        range(posf(ego.state).s, stop=65, length=N), # position
-        range(0., stop=25., length=N), # Velocity
+        range(posf(ego.state).s, stop=70, length=N), # position
+        range(0., stop=35., length=N), # Velocity
         [5.0], # Goal
         [1.0], # Blinker
         )

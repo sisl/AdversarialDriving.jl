@@ -362,7 +362,19 @@ function ego_collides(egoid, scene)
             return true
         end
     end
-    return false
+    false
+end
+
+
+# Check if any two vehicles collide
+function any_collides(scene)
+    for (i,veh) in enumerate(scene)
+        for (j,veh2) in enumerate(scene)
+            j <= i && continue
+            collision_checker(veh, veh2) && return true
+        end
+    end
+    false
 end
 
 # Check if a given car has reached the end of the roadway

@@ -37,11 +37,11 @@ end
 # Confirm that the action distributions are assigned correctly
 @test pomdp.models[5].force_action == false
 @test all([pomdp.models[i].force_action == true for i in 1:4])
-@test support(decomposed[1].models[1].da_dist) == [-1.75, -0.5, 0., 0.5, 1.75]
-@test support(decomposed[1].models[2].da_dist) == [-1.75, -0.5, 0., 0.5, 1.75]
+@test support(decomposed[1].models[1].da_dist) == [-3, -1.5, 0., 1.5, 3]
+@test support(decomposed[1].models[2].da_dist) == [-3, -1.5, 0., 1.5, 3]
 @test probs(decomposed[1].models[1].da_dist) == [1e-4, 1e-2, 1 - (2e-4 + 2e-2), 1e-2, 1e-4]
 @test probs(decomposed[1].models[2].da_dist) == [0,0,1,0,0]
-@test decomposed[1].models[1].toggle_goal_dist == Bernoulli(1e-2)
+@test decomposed[1].models[1].toggle_goal_dist == Bernoulli(1e-4)
 @test decomposed[1].models[2].toggle_goal_dist == Bernoulli(0)
 @test decomposed[1].models[1].da_force == 0
 @test decomposed[1].models[1].toggle_blinker_force == false
@@ -53,26 +53,28 @@ observe!(decomposed[1].models[2], decomposed[1].initial_scene, decomposed[1].roa
 @test rand(decomposed[1].models[1]) == LaneFollowingAccelBlinker(-9.0, 0, false, false)
 @test rand(decomposed[1].models[2]) == LaneFollowingAccelBlinker(-9.0, 0, false, false)
 
-decomposed[1].models[1].da_force = -1.75
+decomposed[1].models[1].da_force = -3
 decomposed[1].models[1].toggle_blinker_force = true
 decomposed[1].models[1].toggle_goal_force = true
-decomposed[1].models[2].da_force = -1.75
+decomposed[1].models[2].da_force = -3
 decomposed[1].models[2].toggle_blinker_force = true
 decomposed[1].models[2].toggle_goal_force = true
 
-@test rand(decomposed[1].models[1]) == LaneFollowingAccelBlinker(-9.0, -1.75, true, true)
+@test rand(decomposed[1].models[1]) == LaneFollowingAccelBlinker(-9.0, -3, true, true)
 @test rand(decomposed[1].models[2]) == LaneFollowingAccelBlinker(-9.0, 0, false, false)
 
 # Test log probability
-@test action_logprob(decomposed[1].models[1], LaneFollowingAccelBlinker(-9.0, -1.75, true, true)) == log(0.025) + log(1e-2) + log(1e-2)
-@test action_logprob(decomposed[1].models[1], LaneFollowingAccelBlinker(-9.0, -1.8, true, true)) == log(0.025) + log(1e-2) + log(1e-2)
-@test action_logprob(decomposed[1].models[1], LaneFollowingAccelBlinker(-9.0, -1, true, true)) == log(0.075) + log(1e-2) + log(1e-2)
+@test action_logprob(decomposed[1].models[1], LaneFollowingAccelBlinker(-9.0, -3, true, true)) == log(1e-4) + log(1e-4) + log(1e-4)
+@test action_logprob(decomposed[1].models[1], LaneFollowingAccelBlinker(-9.0, -3.2, true, true)) == log(1e-4) + log(1e-4) + log(1e-4)
+@test action_logprob(decomposed[1].models[1], LaneFollowingAccelBlinker(-9.0, -1, true, true)) == log(1 - (2e-2 + 2e-4)) + log(1e-4) + log(1e-4)
 
 
 # Test state conversion
 s = initialstate(pomdp)
 @test s == pomdp.initial_scene
 svec = convert_s(AbstractArray, s, pomdp)
+svec_expanded = convert_s_expanded(AbstractArray, s, pomdp)
+@test length(svec_expanded) == 150
 @test length(svec) == pomdp.num_vehicles*4
 
 @test svec[1] == posf(s.entities[1].state).s
@@ -101,11 +103,6 @@ s_no_cars = convert_s(BlinkerScene, svec, pomdp)
 @test length(s_no_cars) == 0
 @test isterminal(pomdp, s_no_cars)
 
-
-# Do a nominal rollout
-policy(o) = rand(actions(pomdp))
-o,a,r,s = policy_rollout(pomdp, policy, initialstate(pomdp), save_scenes = true)
-@test length(s[2]) == length(s[1])
 
 # include("../experiments/plot_utils.jl")
 # make_interact(s, pomdp.models, pomdp.roadway, egoid = 5)

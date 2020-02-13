@@ -1,6 +1,7 @@
 using POMDPs
 
 const OBS_PER_VEH = 4
+const OBS_PER_VEH_EXPANDED = 30
 const ACT_PER_VEH = 7
 const Atype = Array{LaneFollowingAccelBlinker}
 
@@ -107,13 +108,27 @@ end
 
 # Converts the state of a blinker vehicle to a vector
 function to_vec(veh::BlinkerVehicle)
-    p = posf(veh.state)
-    Float64[p.s,
+    Float64[posf(veh.state).s,
             vel(veh.state),
             laneid(veh),
             veh.state.blinker]
 end
 
+function one_hot(i, N)
+    v = zeros(N)
+    v[i] = 1
+    v
+end
+
+# Converts the state of a blinker vehicle to an expanded state space representation
+function to_expanded_vec(veh::BlinkerVehicle)
+    oh = one_hot(laneid(veh), 6)
+    s = posf(veh.state).s .* oh
+    v = vel(veh.state) .* oh
+    v2 = v.^2
+    b = veh.state.blinker .* oh
+    Float64[oh..., s..., v..., v2..., b...]
+end
 
 # Convert from state to vector (this one is simple )
 function POMDPs.convert_s(::Type{Array{Float64, 1}}, state::BlinkerScene, pomdp::AdversarialADM)
@@ -127,6 +142,15 @@ end
 
 POMDPs.convert_s(::Type{AbstractArray}, state::BlinkerScene, pomdp::AdversarialADM) = convert_s(Array{Float64,1}, state, pomdp)
 POMDPs.convert_s(::Type{AbstractArray}, state::BlinkerScene, pomdp::AdversarialADM) = convert_s(Array{Float64,1}, state, pomdp)
+
+function convert_s_expanded(::Type, state::BlinkerScene, pomdp::AdversarialADM)
+    v = zeros(OBS_PER_VEH_EXPANDED*pomdp.num_vehicles)
+    for (ind,veh) in enumerate(state)
+        v[(veh.id-1)*OBS_PER_VEH_EXPANDED + 1: veh.id*OBS_PER_VEH_EXPANDED] .= to_expanded_vec(veh)
+    end
+    v
+end
+
 
 # Returns the intial state of the pomdp simulator
 POMDPs.initialstate(pomdp::AdversarialADM, rng::AbstractRNG = Random.GLOBAL_RNG) = pomdp.initial_scene
@@ -193,5 +217,6 @@ iscollision(pomdp::AdversarialADM, s::BlinkerScene) = length(s) > 0 && ego_colli
 
 # The simulation is terminal if there is collision with the ego vehicle or if the maximum simulation time has been reached
 function POMDPs.isterminal(pomdp::AdversarialADM, s::BlinkerScene)
-    length(s) == 0 || iscollision(pomdp, s)
+    length(s) == 0 || iscollision(pomdp, s) || any_collides(s)
 end
+

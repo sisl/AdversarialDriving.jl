@@ -64,6 +64,7 @@ relerr(est, truth) = sum(abs.(est .- truth) ./ max.(truth, est)) / length(truth)
     mdp # The mdp this problem is associated with
     corrective_model # Model that corrects for deviations from the observed probabilty of failure
     estimate # Estimate of the failure probability. Function of the form estimate(mdp, s)
+    convert_state = convert_s
     N_actions = :all # Number of actions to sample
 end
 
@@ -71,7 +72,7 @@ end
 # The probability is bounded between 0 and 1, and is
 function POMDPs.value(p::ISPolicy, s)
     est = p.estimate(s)
-    cor = forward(p.corrective_model, convert_s(AbstractArray, s, p.mdp)')
+    cor = forward(p.corrective_model, p.convert_state(AbstractArray, s, p.mdp)')
     min(1, max(0, cor + est))
 end
 
@@ -159,7 +160,7 @@ function sim(policy::ISPolicy, Neps; verbose = true, max_steps = 1000)
     for i=1:Neps
         verbose && println("   Rolling out episode ", i)
         s = initialstate(mdp)
-        Si, Ai, Ri, ρi, pfi = [convert_s(AbstractArray, s, mdp)], [], [], [], []
+        Si, Ai, Ri, ρi, pfi = [policy.convert_state(AbstractArray, s, mdp)], [], [], [], []
         steps = 0
         while !isterminal(mdp, s)
             push!(pfi, policy.estimate(s))
@@ -167,7 +168,7 @@ function sim(policy::ISPolicy, Neps; verbose = true, max_steps = 1000)
             push!(Ai, a)
             push!(ρi, action_probability(mdp, s, a) / prob)
             s, r = gen(DDNOut((:sp, :r)), mdp, s, a)
-            push!(Si, convert_s(AbstractArray, s, mdp))
+            push!(Si, policy.convert_state(AbstractArray, s, mdp))
             push!(Ri, r)
             steps += 1
             steps >= max_steps && break

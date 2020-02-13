@@ -8,7 +8,10 @@ function generate_decomposed_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
     roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy = generate_T_intersection()
     template = generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
     support = [-3, -1.5, 0., 1.5, 3]
-    stochastic_probs = [1e-4, 1e-2, 1 - (2e-4 + 2e-2), 1e-2, 1e-4]
+    p_big = 1e-2
+    p_small = 1e-1
+
+    stochastic_probs = [p_big, p_small, 1 - (2*p_big + 2*p_small), p_small, p_big]
     deterministic_probs = [0., 0., 1., 0., 0.]
 
 
@@ -24,13 +27,13 @@ function generate_decomposed_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
     egovehicle = BV(VecSE2(polar(15.0,-π/2) + dx, π/2), 9., goals[5], 5, true, egoid, roadway)
 
     # create list of other vehicles and models
-    vehicles = [BV(VecSE2(polar(20.0,-π) - dy, 0), 15., goals[2], 2, false, 1, roadway),
+    vehicles = [BV(VecSE2(polar(20.0, 0) + dy, -π), 20., goals[3], 3, false, 1, roadway),
                 BV(VecSE2(polar(35.0,-π) - dy, 0), 15., goals[2], 2, false, 1, roadway),
-                BV(VecSE2(polar(50.0,-π) - dy, 0), 15., goals[2], 2, false, 1, roadway),
+                BV(VecSE2(polar(50.0,-π) - dy, 0), 20., goals[2], 2, false, 1, roadway),
                 BV(VecSE2(polar(10.0, 0) + dy, -π), 15., goals[4], 4, true, 1, roadway),
                 ]
-    p_blink = 1e-4
-    p_goal= 1e-4
+    p_blink = 1e-1
+    p_goal= 1e-1
     models = [generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs)),
               generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs)),
               generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs)),
