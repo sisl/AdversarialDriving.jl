@@ -14,6 +14,11 @@ function run_trials(mdp, pol, Nsamps, Ntrials, rng)
 end
 
 decomposed, mdp = generate_decomposed_scene(dt = 0.18)
+
+# Generate image of starting driving scenario
+p = plot_scene(mdp.initial_scene, mdp.models, mdp.roadway, egoid = mdp.egoid)
+write_to_svg(p, "five_car_scenario.svg")
+
 Ns = length(convert_s_expanded(Vector{Float64},  initialstate(mdp), mdp))
 Nactions = 100
 Ntrials = 5
@@ -75,7 +80,7 @@ println("Min Utility Fusion Rollouts failed: ", min_uf_failures, " ± ", min_uf_
 
 
 ######### Train the global approximation ##########
-iterations = 20
+iterations = 50
 eps_per_iteration = 50
 
 ######### Subproblem Estimation Approaches (No global Approximation) ##########
@@ -118,6 +123,11 @@ make_interact(state_hist(h_mc), mdp.models, mdp.roadway, egoid = mdp.egoid)
 h_is = POMDPSimulators.simulate(HistoryRecorder(rng = rng), mdp, FunctionPolicy((s) -> rand(rng, actions(mdp, s))))
 make_interact(state_hist(h_is), mdp.models, mdp.roadway, egoid = mdp.egoid)
 
+h_min_ga = POMDPSimulators.simulate(HistoryRecorder(rng = rng), mdp, is_policy_subprob_min)
+make_interact(state_hist(h_min_ga), mdp.models, mdp.roadway, egoid = mdp.egoid)
+
+write_scenes(state_hist(h_min_ga), mdp.models, mdp.roadway, "frame", egoid = mdp.egoid)
+
 h1 = POMDPSimulators.simulate(HistoryRecorder(rng = rng), decomposed[1], policies[1])
 make_interact(state_hist(h1), decomposed[1].models, decomposed[1].roadway, egoid = decomposed[1].egoid)
 
@@ -129,3 +139,4 @@ make_interact(state_hist(h3), decomposed[3].models, decomposed[3].roadway, egoid
 
 h4 = POMDPSimulators.simulate(HistoryRecorder(rng = rng), decomposed[4], policies[4])
 make_interact(state_hist(h4), decomposed[4].models, decomposed[4].roadway, egoid = decomposed[4].egoid)
+

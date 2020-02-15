@@ -16,7 +16,22 @@ lane_right = Dict(
     6 => true
     )
 
-function plot_scene(scene, models, roadway; egoid = nothing)
+function write_scene(scene, models, roadway, filename; egoid = nothing, text = false)
+    p = plot_scene(scene, models, roadway, egoid = egoid, text = text)
+    write_to_svg(p, filename)
+end
+
+function write_scenes(scenes, models, roadway, filename_base; egoid = nothing, text = false)
+    i = 1
+    for s in scenes
+        filename = (i < 10) ? string(filename_base, "_0", i, ".png") : string(filename_base, "_", i, ".png")
+        p = plot_scene(s, models, roadway, egoid = egoid, text = text)
+        write_to_png(p, filename)
+        i = i+1
+    end
+end
+
+function plot_scene(scene, models, roadway; egoid = nothing, text = false)
     car_colors = Dict{Int, Colorant}()
     cam = FitToContentCamera(.1)
     overlays = SceneOverlay[]
@@ -29,7 +44,8 @@ function plot_scene(scene, models, roadway; egoid = nothing)
             car_colors[i] = colorant"blue"
         end
         push!(overlays, BlinkerOverlay(on = veh.state.blinker, veh = Vehicle(veh),right=lane_right[li]))
-        push!(overlays, TextOverlay(pos = veh.state.veh_state.posG + VecE2(-3, 3), text = [ string("id: ", veh.id, ", goal: ", goal_map[li])], color = colorant"black", incameraframe=true))
+        text && push!(overlays, TextOverlay(pos = veh.state.veh_state.posG + VecE2(-3, 3), text = [ string("id: ", veh.id, ", goal: ", goal_map[li])], color = colorant"black", incameraframe=true))
+
     end
     AutoViz.render(Scene(scene), roadway, overlays, cam=cam, car_colors = car_colors)
 end
