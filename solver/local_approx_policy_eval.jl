@@ -145,20 +145,21 @@ function POMDPs.solve(solver::LocalPolicyEvalSolver, mdp::Union{MDP,POMDP})
                     if solver.is_mdp_generative
                         # Generative Model
                         for j in 1:solver.n_generative_samples
-                            sp, r = 0, 0
-                            try
-                                sp, r = next_state_dict[(s,a)]
-                            catch e
+                            sp_point, r, isTerm = 0, 0, false
+                            if haskey(next_state_dict, (s,a))
+                                sp_point, r, isTerm = next_state_dict[(s,a)]
+                            else
                                 sp, r = gen(DDNOut(:sp,:r), mdp, s, a, solver.rng)
-                                sp = POMDPs.convert_s(Vector{Float64}, sp, mdp)
-                                next_state_dict[(s,a)] = (sp, r)
+                                isTerm = isterminal(mdp, sp)
+                                sp_point = POMDPs.convert_s(Vector{Float64}, sp, mdp)
+                                next_state_dict[(s,a)] = (sp_point, r, isTerm)
                             end
 
                             u += r
 
                             # Only interpolate sp if it is non-terminal
-                            if !isterminal(mdp,sp)
-                                u += discount_factor*compute_value(policy.interp, sp)
+                            if !isTerm
+                                u += discount_factor*compute_value(policy.interp, sp_point)
                             end
                         end
                         u = u / solver.n_generative_samples
