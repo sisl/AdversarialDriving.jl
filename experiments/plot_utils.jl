@@ -26,7 +26,7 @@ function write_scenes(scenes, models, roadway, filename_base; egoid = nothing, t
     for s in scenes
         filename = (i < 10) ? string(filename_base, "_0", i, ".png") : string(filename_base, "_", i, ".png")
         p = plot_scene(s, models, roadway, egoid = egoid, text = text)
-        write_to_png(p, filename)
+        AutoViz.write_to_png(p, filename)
         i = i+1
     end
 end

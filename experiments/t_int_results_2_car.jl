@@ -18,9 +18,11 @@ mdp = generate_2car_scene(dt = 0.18)
 p = plot_scene(mdp.initial_scene, mdp.models, mdp.roadway, egoid = mdp.egoid)
 write_to_svg(p, "twocar_scenario.svg")
 
-
+# Make gif of the nominal behavior of the scene
 h_mc = POMDPSimulators.simulate(HistoryRecorder(rng = rng), mdp, FunctionPolicy((s) -> random_action(mdp, s, rng)))
 make_interact(state_hist(h_mc), mdp.models, mdp.roadway, egoid = mdp.egoid)
+
+write_scenes(state_hist(h_mc), mdp.models, mdp.roadway, "frame", egoid = mdp.egoid)
 
 ########## Compare the policies #################
 Ntrials = 5
@@ -42,7 +44,7 @@ ego = get_by_id(mdp.initial_scene, 2)
 grid = RectangleGrid(
 # Vehicle 1
     range(posf(veh.state).s, stop=70,length=N), # position
-    range(0, stop=45., length=N), # Velocity
+    range(0, stop=35., length=N), # Velocity
     mdp.models[1].goals[laneid(veh)], # Goal
     [0.0, 1.0], # Blinker
 # Vehicle 2 (ego)

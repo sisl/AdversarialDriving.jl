@@ -22,7 +22,7 @@ function generate_2car_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
     egovehicle = BV(VecSE2(polar(15.0,-π/2) + dx, π/2), 9., goals[5], 5, true, egoid, roadway)
 
     # create other vehicle and model
-    vehicle = BV(VecSE2(polar(45.0,-π) - dy, 0), 15., goals[2], 2, false, 1, roadway)
+    vehicle = BV(VecSE2(polar(29.0,-π) - dy, 0), 10., goals[2], 2, false, 1, roadway)
     p_blink = 1e-5
     p_goal= 1e-5
     model = generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs))

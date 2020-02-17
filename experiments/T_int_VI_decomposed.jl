@@ -7,7 +7,7 @@ using Serialization
 
 decomposed, combined = generate_decomposed_scene(dt = 0.18)
 policies = Array{Any}(undef, length(decomposed))
-N = 20
+N = 25
 
 for i in 1:length(decomposed)
     println("Solving decomposition ", i)
@@ -23,7 +23,7 @@ for i in 1:length(decomposed)
         [0.0, 1.0], # Blinker
     # Vehicle 2
         range(posf(ego.state).s, stop=70, length=N), # position
-        range(0., stop=35., length=N), # Velocity
+        range(0., stop=30., length=N), # Velocity
         [5.0], # Goal
         [1.0], # Blinker
         )

@@ -121,6 +121,9 @@ function POMDPs.solve(solver::LocalPolicyEvalSolver, mdp::Union{MDP,POMDP})
         interp_states[i] = POMDPs.convert_s(S, pt, mdp)
     end
 
+    # State transition dictionary
+    next_state_dict = Dict()
+
     # Outer loop for Value Iteration
     for i = 1 : max_iterations
         residual::Float64 = 0.0
@@ -142,13 +145,20 @@ function POMDPs.solve(solver::LocalPolicyEvalSolver, mdp::Union{MDP,POMDP})
                     if solver.is_mdp_generative
                         # Generative Model
                         for j in 1:solver.n_generative_samples
-                            sp, r = gen(DDNOut(:sp,:r), mdp, s, a, solver.rng)
+                            sp, r = 0, 0
+                            try
+                                sp, r = next_state_dict[(s,a)]
+                            catch e
+                                sp, r = gen(DDNOut(:sp,:r), mdp, s, a, solver.rng)
+                                sp = POMDPs.convert_s(Vector{Float64}, sp, mdp)
+                                next_state_dict[(s,a)] = (sp, r)
+                            end
+
                             u += r
 
                             # Only interpolate sp if it is non-terminal
                             if !isterminal(mdp,sp)
-                                sp_point = POMDPs.convert_s(Vector{Float64}, sp, mdp)
-                                u += discount_factor*compute_value(policy.interp, sp_point)
+                                u += discount_factor*compute_value(policy.interp, sp)
                             end
                         end
                         u = u / solver.n_generative_samples
@@ -167,7 +177,6 @@ function POMDPs.solve(solver::LocalPolicyEvalSolver, mdp::Union{MDP,POMDP})
                             end
                         end # next-states
                     end
-
                     total_util += action_probability(mdp, s, a)*u
                 end #action
 
@@ -197,14 +206,13 @@ function POMDPs.value(policy::LocalPolicyEvalPolicy, s::S) where S
 end
 
 # Not explicitly stored in policy - extract from value function interpolation
-function POMDPs.action(policy::LocalPolicyEvalPolicy, s::S, return_prob = false) where S
+function POMDPs.action(policy::LocalPolicyEvalPolicy, s::S, rng= Random.GLOBAL_RNG) where S
     us = [value(policy, s, a) for a in actions(policy.mdp, s)]
     if sum(us) == 0
         us = ones(length(us)) / length(us)
     end
     us /= sum(us)
-    a_id = rand(Categorical(us))
-    policy.action_map[a_id]
+    policy.action_map[rand(rng, Categorical(us))]
 end
 
 # GlobalApproximationFailureProbe the action-value for some state-action pair

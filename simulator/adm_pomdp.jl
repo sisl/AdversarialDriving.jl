@@ -40,7 +40,6 @@ a_dim(pomdp::AdversarialADM) = a_dim(pomdp.num_controllable_vehicles)
 
 function index_to_action(action::Int, model)
     das = support(model.da_dist)
-    action == 0 && return LaneFollowingAccelBlinker(0, 0, false, false)
     action == 1 && return LaneFollowingAccelBlinker(0, das[1], false, false)
     action == 2 && return LaneFollowingAccelBlinker(0, das[2], false, false)
     action == 3 && return LaneFollowingAccelBlinker(0, das[3], false, false)
@@ -51,7 +50,6 @@ function index_to_action(action::Int, model)
 end
 
 function action_to_string(action::Int)
-    action == 0 && return "No disturbance"
     action == 1 && return "hard brake"
     action == 2 && return "soft brake"
     action == 3 && return "do nothing"
@@ -66,7 +64,8 @@ POMDPs.actions(pomdp::AdversarialADM) = pomdp.actions
 POMDPs.actions(pomdp::AdversarialADM, state::Tuple{BlinkerScene, Float64}) = actions(pomdp)
 POMDPs.actionindex(pomdp::AdversarialADM, a::Atype) = pomdp.action_to_index[a]
 
-action_probability(pomdp::AdversarialADM, s::BlinkerScene, a::Atype) = prod([exp(action_logprob(pomdp.models[i], a[i])) for i in 1:pomdp.num_controllable_vehicles])
+action_probability(pomdp::AdversarialADM, s::BlinkerScene, a::Atype) = 1 / length(actions(pomdp))
+    # prod([exp(action_logprob(pomdp.models[i], a[i])) for i in 1:pomdp.num_controllable_vehicles])
 
 # Gets an action according to true probabilities of the agents
 function random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::Random.AbstractRNG)
