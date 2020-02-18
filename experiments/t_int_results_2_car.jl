@@ -37,26 +37,27 @@ is_failures, is_std = run_trials(mdp, FunctionPolicy((s) -> rand(rng, actions(md
 println("Importance Sampling Rollouts failed: ", is_failures, " ± ", is_std, " / ", Nsamples)
 
 ############# Solve the problem w/ dynamic programming #########################
-N = 20
-veh = get_by_id(mdp.initial_scene, 1)
-ego = get_by_id(mdp.initial_scene, 2)
-
-grid = RectangleGrid(
-# Vehicle 1
-    range(posf(veh.state).s, stop=70,length=N), # position
-    range(0, stop=35., length=N), # Velocity
-    mdp.models[1].goals[laneid(veh)], # Goal
-    [0.0, 1.0], # Blinker
-# Vehicle 2 (ego)
-    range(posf(ego.state).s, stop=70, length=N), # position
-    range(0., stop=25., length=N), # Velocity
-    [5.0], # Goal
-    [1.0], # Blinker
-    )
-
-interp = LocalGIFunctionApproximator(grid)
-solver = LocalPolicyEvalSolver(interp, is_mdp_generative = true, n_generative_samples = 1, verbose = true, max_iterations = 100, belres = 1e-6)
-policy = solve(solver, mdp)
+# N = 20
+# veh = get_by_id(mdp.initial_scene, 1)
+# ego = get_by_id(mdp.initial_scene, 2)
+#
+# grid = RectangleGrid(
+# # Vehicle 1
+#     range(posf(veh.state).s, stop=70,length=N), # position
+#     range(0, stop=35., length=N), # Velocity
+#     mdp.models[1].goals[laneid(veh)], # Goal
+#     [0.0, 1.0], # Blinker
+# # Vehicle 2 (ego)
+#     range(posf(ego.state).s, stop=70, length=N), # position
+#     range(0., stop=25., length=N), # Velocity
+#     [5.0], # Goal
+#     [1.0], # Blinker
+#     )
+#
+# interp = LocalGIFunctionApproximator(grid)
+# solver = LocalPolicyEvalSolver(interp, is_mdp_generative = true, n_generative_samples = 1, verbose = true, max_iterations = 100, belres = 1e-6)
+# policy = solve(solver, mdp)
+policy = deserialize("two_car_failure_pol.jls")
 
 
 ######### Local Approximation Policy Evaluation ############################

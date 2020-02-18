@@ -8,6 +8,8 @@ using POMDPSimulators
 using POMDPPolicies
 using Statistics
 
+rng = MersenneTwister(0)
+
 function run_trials(mdp, pol, Nsamps, Ntrials, rng)
     results = [sum([POMDPSimulators.simulate(RolloutSimulator(rng = rng), mdp, pol) for i=1:Nsamps]) for i=1:Ntrials]
     mean(results), std(results)
@@ -19,21 +21,26 @@ decomposed, mdp = generate_decomposed_scene(dt = 0.18)
 p = plot_scene(mdp.initial_scene, mdp.models, mdp.roadway, egoid = mdp.egoid)
 write_to_svg(p, "five_car_scenario.svg")
 
+# Generate a gif of the nominal behavior of the 5-car scenario
+h_mc = POMDPSimulators.simulate(HistoryRecorder(rng = rng), mdp, FunctionPolicy((s) -> actions(mdp)[1]))
+make_interact(state_hist(h_mc), mdp.models, mdp.roadway, egoid = mdp.egoid)
+write_scenes(state_hist(h_mc), mdp.models, mdp.roadway, "frame", egoid = mdp.egoid)
+
+
 Ns = length(convert_s_expanded(Vector{Float64},  initialstate(mdp), mdp))
-Nactions = 100
 Ntrials = 5
 Nsamples = 100
-rng = MersenneTwister(0)
+
 
 ######## Load in policies ################
 policies = [deserialize(string("policy_decomp_", i, ".jls")) for i in 1:length(decomposed)]
 Vest_mean = subproblem_estimate_fn(policies, (s) -> decompose_scene(s, mdp.egoid), :mean)
 Vest_min = subproblem_estimate_fn(policies, (s) -> decompose_scene(s, mdp.egoid), :min)
 Vest_max = subproblem_estimate_fn(policies, (s) -> decompose_scene(s, mdp.egoid), :max)
-is_policy_no_estimate = ISPolicy(mdp, LinearModel(Ns), (s) -> 0, convert_s_expanded, Nactions)
-is_policy_subprob_mean = ISPolicy(mdp, LinearModel(Ns), Vest_mean, convert_s_expanded, Nactions)
-is_policy_subprob_min = ISPolicy(mdp, LinearModel(Ns), Vest_min, convert_s_expanded, Nactions)
-is_policy_subprob_max = ISPolicy(mdp, LinearModel(Ns), Vest_max, convert_s_expanded, Nactions)
+is_policy_no_estimate = ISPolicy(mdp, LinearModel(Ns), (s) -> 0, convert_s_expanded, :all)
+is_policy_subprob_mean = ISPolicy(mdp, LinearModel(Ns), Vest_mean, convert_s_expanded, :all)
+is_policy_subprob_min = ISPolicy(mdp, LinearModel(Ns), Vest_min, convert_s_expanded, :all)
+is_policy_subprob_max = ISPolicy(mdp, LinearModel(Ns), Vest_max, convert_s_expanded, :all)
 
 ##### Generate set of states that will be used for bellman residual ##########
 Nstates = 100
@@ -80,45 +87,53 @@ println("Min Utility Fusion Rollouts failed: ", min_uf_failures, " ± ", min_uf_
 
 
 ######### Train the global approximation ##########
-iterations = 50
-eps_per_iteration = 50
+iterations = 25
+eps_per_iteration = 100
 
 ######### Subproblem Estimation Approaches (No global Approximation) ##########
 # No Estimation -- Just global approximation trained with IS
 println("Training Global Approx Model (No Estimate)... ")
-mc_policy_eval!(is_policy_no_estimate, iterations, eps_per_iteration, verbose = false)
+is_failure_rate = []
+mc_policy_eval!(is_policy_no_estimate, iterations, eps_per_iteration, verbose = false, failure_rate_vec = is_failure_rate)
 no_est_ga_failures, no_est_ga_std = run_trials(mdp, is_policy_no_estimate, Nsamples, Ntrials, rng)
 no_est_ga_residuals = bellman_residual(mdp, Bellman_states, (s) -> value(is_policy_no_estimate, s))
 println("No Estimate - Global Approximation Failed: ", no_est_ga_failures, " ± ", no_est_ga_std, " / ", Nsamples,  " Bellman Residual: max=", maximum(no_est_ga_residuals), " mean=", mean(no_est_ga_residuals))
-
+plot(is_failure_rate, title = "GLA - No Estimation - Failure Rate Training Curve", xlabel = "iterations", ylabel = "failure rate")
+savefig("no_est_convergence.pdf")
 
 # Utility Fusion with Mean + Global Approximation
-println("Training Global Approx Model (No Mean UF)... ")
-mc_policy_eval!(is_policy_subprob_mean, iterations, eps_per_iteration, verbose = false)
+println("Training Global Approx Model (Mean UF)... ")
+mean_uf_failure_rate = []
+mc_policy_eval!(is_policy_subprob_mean, iterations, eps_per_iteration, verbose = false, failure_rate_vec = mean_uf_failure_rate)
 mean_uf_ga_failures, mean_uf_ga_std = run_trials(mdp, is_policy_subprob_mean, Nsamples, Ntrials, rng)
 mean_uf_ga_residuals = bellman_residual(mdp, Bellman_states, (s) -> value(is_policy_subprob_mean, s))
 println("Mean Utility Fusion Rollouts failed: ", mean_uf_ga_failures, " ± ", mean_uf_ga_std, " / ", Nsamples,  " Bellman Residual: max=", maximum(mean_uf_ga_residuals), " mean=", mean(mean_uf_ga_residuals))
-
+plot(mean_uf_failure_rate, title = "GLA - Mean UF - Failure Rate Training Curve", xlabel = "iterations", ylabel = "failure rate")
+savefig("mean_uf_convergence.pdf")
 
 # Utility Fusion with Max + Global Approximation
-println("Training Global Approx Model (No Max UF)... ")
-mc_policy_eval!(is_policy_subprob_max, iterations, eps_per_iteration, verbose = false)
+println("Training Global Approx Model (Max UF)... ")
+max_uf_failure_rate = []
+mc_policy_eval!(is_policy_subprob_max, iterations, eps_per_iteration, verbose = false, failure_rate_vec = max_uf_failure_rate)
 max_uf_ga_failures, max_uf_ga_std = run_trials(mdp, is_policy_subprob_max, Nsamples, Ntrials, rng)
 max_uf_ga_residuals = bellman_residual(mdp, Bellman_states, (s) -> value(is_policy_subprob_max, s))
 println("Max Utility Fusion Rollouts failed: ", max_uf_ga_failures, " ± ", max_uf_ga_std, " / ", Nsamples,  " Bellman Residual: max=", maximum(max_uf_ga_residuals), " mean=", mean(max_uf_ga_residuals))
-
+plot(max_uf_failure_rate, title = "GLA - Max UF - Failure Rate Training Curve", xlabel = "iterations", ylabel = "failure rate")
+savefig("max_uf_convergence.pdf")
 
 # Utility Fusion with Min + Global Approximation
-println("Training Global Approx Model (No Min UF)... ")
-mc_policy_eval!(is_policy_subprob_min, iterations, eps_per_iteration, verbose = false)
+println("Training Global Approx Model (Min UF)... ")
+min_uf_failure_rate = []
+mc_policy_eval!(is_policy_subprob_min, iterations, eps_per_iteration, verbose = false, failure_rate_vec = min_uf_failure_rate)
 min_uf_ga_failures, min_uf_ga_std = run_trials(mdp, is_policy_subprob_min, Nsamples, Ntrials, rng)
 min_uf_ga_residuals = bellman_residual(mdp, Bellman_states, (s) -> value(is_policy_subprob_min, s))
 println("Min Utility Fusion Rollouts failed: ", min_uf_ga_failures, " ± ", min_uf_ga_std, " / ", Nsamples,  " Bellman Residual: max=", maximum(min_uf_ga_residuals), " mean=", mean(min_uf_ga_residuals))
-
+plot(min_uf_failure_rate, title = "GLA - Min UF - Failure Rate Training Curve", xlabel = "iterations", ylabel = "failure rate")
+savefig("min_uf_convergence.pdf")
 
 ##### Play some videos of the policies #######
-h_mc = POMDPSimulators.simulate(HistoryRecorder(rng = rng), mdp, FunctionPolicy((s) -> random_action(mdp, s, rng)))
-make_interact(state_hist(h_mc), mdp.models, mdp.roadway, egoid = mdp.egoid)
+h = POMDPSimulators.simulate(HistoryRecorder(rng = rng), mdp, is_policy_subprob_mean)
+make_interact(state_hist(h), mdp.models, mdp.roadway, egoid = mdp.egoid)
 
 h_is = POMDPSimulators.simulate(HistoryRecorder(rng = rng), mdp, FunctionPolicy((s) -> rand(rng, actions(mdp, s))))
 make_interact(state_hist(h_is), mdp.models, mdp.roadway, egoid = mdp.egoid)

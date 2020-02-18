@@ -21,15 +21,40 @@ end
 function AdversarialADM(models, roadway, egoid, intial_scene, dt)
     num_vehicles = length(intial_scene)
     num_controllable_vehicles = num_vehicles - 1
-    actions = Array{Atype}(undef, a_dim(num_controllable_vehicles))
+    
+    # This code makes it so that one car at a time can make one of its actions
+    actions = Array{Atype}(undef, num_controllable_vehicles*(ACT_PER_VEH-1) + 1)
     action_to_index = Dict()
     index = 1
-    for ijk in CartesianIndices(Tuple(ACT_PER_VEH for i=1:num_controllable_vehicles))
-        a = [index_to_action(ijk.I[i], models[i]) for i in 1:num_controllable_vehicles]
-        actions[index] = a
-        action_to_index[a] = index
-        index += 1
+
+    # First select the action where all of the cars do nothing
+    do_nothing_action = [index_to_action(3, models[i]) for i in 1:num_controllable_vehicles]
+    actions[index] = do_nothing_action
+    action_to_index[do_nothing_action] = index
+    index += 1
+
+    # Then loop through all vehicles and give each one the possibilities of doing an action
+    for vehid in 1:num_controllable_vehicles
+        for aid in 1:ACT_PER_VEH
+            aid == 3 && continue # Skip the do-nothing action
+            a = [index_to_action(3, models[i]) for i in 1:num_controllable_vehicles]
+            a[vehid] = index_to_action(aid, models[vehid])
+            actions[index] = a
+            action_to_index[a] = index
+            index += 1
+        end
     end
+
+    # This code makes it so all vehicles can choose an action at one time
+    # actions = Array{Atype}(undef, a_dim(num_controllable_vehicles))
+    # action_to_index = Dict()
+    # index = 1
+    # for ijk in CartesianIndices(Tuple(ACT_PER_VEH for i=1:num_controllable_vehicles))
+    #     a = [index_to_action(ijk.I[i], models[i]) for i in 1:num_controllable_vehicles]
+    #     actions[index] = a
+    #     action_to_index[a] = index
+    #     index += 1
+    # end
     AdversarialADM(num_vehicles, num_controllable_vehicles, models, roadway, egoid, intial_scene, dt, zeros(num_vehicles*OBS_PER_VEH), actions, action_to_index)
 end
 
