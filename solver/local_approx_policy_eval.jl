@@ -207,13 +207,16 @@ function POMDPs.value(policy::LocalPolicyEvalPolicy, s::S) where S
 end
 
 # Not explicitly stored in policy - extract from value function interpolation
-function POMDPs.action(policy::LocalPolicyEvalPolicy, s::S, rng= Random.GLOBAL_RNG) where S
+POMDPs.action(policy::LocalPolicyEvalPolicy, s, rng= Random.GLOBAL_RNG) = action_and_prob(policy, s, rng)[1]
+
+function action_and_prob(policy::LocalPolicyEvalPolicy, s, rng= Random.GLOBAL_RNG)
     us = [value(policy, s, a) for a in actions(policy.mdp, s)]
     if sum(us) == 0
         us = ones(length(us)) / length(us)
     end
     us /= sum(us)
-    policy.action_map[rand(rng, Categorical(us))]
+    ai = rand(rng, Categorical(us))
+    policy.action_map[ai], us[ai]
 end
 
 # GlobalApproximationFailureProbe the action-value for some state-action pair

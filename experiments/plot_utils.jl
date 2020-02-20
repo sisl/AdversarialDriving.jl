@@ -2,6 +2,7 @@ using Interact
 using Reel
 using AutoViz
 using Plots
+using Statistics
 
 # Strings describing the goal of each lane
 goal_map = Dict(1 => "turn right", 2 =>"straight", 3=>"straight", 4=>"turn left", 5=>"turn left", 6=> "turn right")
@@ -74,5 +75,22 @@ function plot_training(training_log, filename)
 
     p3 = plot(training_log["kl"], xlabel="Iterations", ylabel="KL Divergence", title = "KL Divergence", label="", size = (600,200))
     savefig(p3, string(filename, "_kl.pdf"))
+end
+
+
+function plot_time_series(time_series_array, label, p = nothing)
+    # First combine the arrays
+    new_arrays = []
+    N = length(time_series_array[1])
+    for i=1:N
+        arrai = []
+        for s in time_series_array
+            push!(arrai, s[i])
+        end
+        push!(new_arrays, arrai)
+    end
+    means = mean.(new_arrays)
+    stds = std.(new_arrays)
+    p == nothing ? plot(means, ribbon=stds, label=label) : plot!(p, means, ribbon=stds, label=label)
 end
 

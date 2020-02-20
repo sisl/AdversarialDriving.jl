@@ -7,12 +7,12 @@ function generate_2car_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
     # Create the roadway
     roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy = generate_T_intersection()
     template = generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
-    support = [-3, -1.5, 0., 1.5, 3]
+    support = [0, -3, -1.5, 1.5, 3]
     p_big = 1e-2
     p_small = 1e-1
 
-    stochastic_probs = [p_big, p_small, 1 - (2*p_big + 2*p_small), p_small, p_big]
-    deterministic_probs = [0., 0., 1., 0., 0.]
+    stochastic_probs = [1 - (2*p_big + 2*p_small), p_big, p_small, p_small, p_big]
+    deterministic_probs = [1.0, 0., 0., 0., 0.]
 
 
     # Create the ego vehicle
@@ -41,12 +41,12 @@ function generate_decomposed_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
     # Create the roadway
     roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy = generate_T_intersection()
     template = generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
-    support = [-3, -1.5, 0., 1.5, 3]
+    support = [0, -3, -1.5, 1.5, 3]
     p_big = 1e-2
     p_small = 1e-1
 
-    stochastic_probs = [p_big, p_small, 1 - (2*p_big + 2*p_small), p_small, p_big]
-    deterministic_probs = [0., 0., 1., 0., 0.]
+    stochastic_probs = [1 - (2*p_big + 2*p_small), p_big, p_small, p_small, p_big]
+    deterministic_probs = [1.0, 0., 0., 0., 0., 0.]
 
 
     # Create the ego vehicle

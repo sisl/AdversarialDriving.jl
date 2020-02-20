@@ -62,7 +62,9 @@ mc_failures, mc_std = run_trials(mdp, FunctionPolicy((s) -> random_action(mdp, s
 println("Monte-Carlo Rollouts failed: ", mc_failures, " ± ", mc_std, " / ", Nsamples)
 
 ######### Importance Sampling (uniform distribution) Approach ################
-is_failures, is_std = run_trials(mdp, FunctionPolicy((s) -> rand(rng, actions(mdp, s))), Nsamples, Ntrials, rng)
+is_policy = UniformISPolicy(mdp, rng)
+is_failures, is_std = run_trials(mdp, is_policy, Nsamples, Ntrials, rng)
+is_mean_arr, is_std_arr = compute_mean(50000, mdp, policy, rng)
 zero_guess_residuals = bellman_residual(mdp, Bellman_states, (s)->0)
 println("Importance Sampling Rollouts failed: ", is_failures, " ± ", is_std, " / ", Nsamples, " Bellman Residual: max=", maximum(zero_guess_residuals), " mean=", mean(zero_guess_residuals))
 
@@ -70,18 +72,21 @@ println("Importance Sampling Rollouts failed: ", is_failures, " ± ", is_std, " 
 
 # Utility Fusion with Mean
 mean_uf_failures, mean_uf_std = run_trials(mdp, is_policy_subprob_mean, Nsamples, Ntrials, rng)
+mean_uf_mean_arr, mean_uf_std_arr = compute_mean(50000, mdp, is_policy_subprob_mean, rng)
 mean_uf_residuals = bellman_residual(mdp, Bellman_states, (s) -> value(is_policy_subprob_mean, s))
 println("Mean Utility Fusion Rollouts failed: ", mean_uf_failures, " ± ", mean_uf_std, " / ", Nsamples,  " Bellman Residual: max=", maximum(mean_uf_residuals), " mean=", mean(mean_uf_residuals))
 
 
 # Utility Fusion with Max
 max_uf_failures, max_uf_std = run_trials(mdp, is_policy_subprob_max, Nsamples, Ntrials, rng)
+max_uf_mean_arr, max_uf_std_arr = compute_mean(50000, mdp, is_policy_subprob_max, rng)
 max_uf_residuals = bellman_residual(mdp, Bellman_states, (s) -> value(is_policy_subprob_max, s))
 println("Max Utility Fusion Rollouts failed: ", max_uf_failures, " ± ", max_uf_std, " / ", Nsamples,  " Bellman Residual: max=", maximum(max_uf_residuals), " mean=", mean(max_uf_residuals))
 
 
 # Utility Fusion with Min
 min_uf_failures, min_uf_std = run_trials(mdp, is_policy_subprob_min, Nsamples, Ntrials, rng)
+min_uf_mean_arr, min_uf_std_arr = compute_mean(50000, mdp, is_policy_subprob_min, rng)
 min_uf_residuals = bellman_residual(mdp, Bellman_states, (s) -> value(is_policy_subprob_min, s))
 println("Min Utility Fusion Rollouts failed: ", min_uf_failures, " ± ", min_uf_std, " / ", Nsamples,  " Bellman Residual: max=", maximum(min_uf_residuals), " mean=", mean(min_uf_residuals))
 

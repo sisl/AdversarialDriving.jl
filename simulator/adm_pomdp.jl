@@ -16,34 +16,38 @@ mutable struct AdversarialADM <: MDP{BlinkerScene, Atype}
     last_observation # Last observation of the vehicle state
     actions # Set of all actions for the pomdp
     action_to_index # Dictionary mapping actions to dictionary
+    action_probabilities # probability of taking each action
 end
 
 function AdversarialADM(models, roadway, egoid, intial_scene, dt)
     num_vehicles = length(intial_scene)
     num_controllable_vehicles = num_vehicles - 1
-    
+
     # This code makes it so that one car at a time can make one of its actions
     actions = Array{Atype}(undef, num_controllable_vehicles*(ACT_PER_VEH-1) + 1)
     action_to_index = Dict()
+    action_probabilities = Array{Float64}(undef, num_controllable_vehicles*(ACT_PER_VEH-1) + 1)
     index = 1
 
     # First select the action where all of the cars do nothing
-    do_nothing_action = [index_to_action(3, models[i]) for i in 1:num_controllable_vehicles]
+    do_nothing_action = [index_to_action(1, models[i]) for i in 1:num_controllable_vehicles]
     actions[index] = do_nothing_action
     action_to_index[do_nothing_action] = index
+    action_probabilities[index] = action_probability(1)
     index += 1
 
     # Then loop through all vehicles and give each one the possibilities of doing an action
     for vehid in 1:num_controllable_vehicles
-        for aid in 1:ACT_PER_VEH
-            aid == 3 && continue # Skip the do-nothing action
-            a = [index_to_action(3, models[i]) for i in 1:num_controllable_vehicles]
+        for aid in 2:ACT_PER_VEH # Skip the do-nothing action
+            a = [index_to_action(1, models[i]) for i in 1:num_controllable_vehicles]
             a[vehid] = index_to_action(aid, models[vehid])
             actions[index] = a
             action_to_index[a] = index
+            action_probabilities[index] = action_probability(aid) / num_controllable_vehicles
             index += 1
         end
     end
+    @assert sum(action_probabilities) == 1
 
     # This code makes it so all vehicles can choose an action at one time
     # actions = Array{Atype}(undef, a_dim(num_controllable_vehicles))
@@ -55,7 +59,7 @@ function AdversarialADM(models, roadway, egoid, intial_scene, dt)
     #     action_to_index[a] = index
     #     index += 1
     # end
-    AdversarialADM(num_vehicles, num_controllable_vehicles, models, roadway, egoid, intial_scene, dt, zeros(num_vehicles*OBS_PER_VEH), actions, action_to_index)
+    AdversarialADM(num_vehicles, num_controllable_vehicles, models, roadway, egoid, intial_scene, dt, zeros(num_vehicles*OBS_PER_VEH), actions, action_to_index, action_probabilities)
 end
 
 o_dim(pomdp::AdversarialADM) = pomdp.num_vehicles*OBS_PER_VEH
@@ -74,10 +78,21 @@ function index_to_action(action::Int, model)
     action == 7 && return LaneFollowingAccelBlinker(0, 0., false, true)
 end
 
+function action_probability(action::Int)
+    action == 1 && return 1 - (4e-3 + 2e-2) # This is the nominal do-nothing action
+    action == 2 && return 1e-3
+    action == 3 && return 1e-2
+    action == 4 && return 1e-2
+    action == 5 && return 1e-3
+    action == 6 && return 1e-3
+    action == 7 && return 1e-3
+end
+
+
 function action_to_string(action::Int)
-    action == 1 && return "hard brake"
-    action == 2 && return "soft brake"
-    action == 3 && return "do nothing"
+    action == 1 && return "do nothing"
+    action == 2 && return "hard brake"
+    action == 3 && return "soft brake"
     action == 4 && return "soft acc"
     action == 5 && return "hard acc"
     action == 6 && return "toggle goal"
@@ -89,20 +104,24 @@ POMDPs.actions(pomdp::AdversarialADM) = pomdp.actions
 POMDPs.actions(pomdp::AdversarialADM, state::Tuple{BlinkerScene, Float64}) = actions(pomdp)
 POMDPs.actionindex(pomdp::AdversarialADM, a::Atype) = pomdp.action_to_index[a]
 
-action_probability(pomdp::AdversarialADM, s::BlinkerScene, a::Atype) = 1 / length(actions(pomdp))
+action_probability(pomdp::AdversarialADM, s::BlinkerScene, a::Atype) = 1. / length(pomdp.actions)
+
+true_action_probability(pomdp::AdversarialADM, s::BlinkerScene, a::Atype) = pomdp.action_probabilities[pomdp.action_to_index[a]]
     # prod([exp(action_logprob(pomdp.models[i], a[i])) for i in 1:pomdp.num_controllable_vehicles])
 
+random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::AbstractRNG) = mdp.actions[rand(rng, Categorical(pomdp.action_probabilities))]
+
 # Gets an action according to true probabilities of the agents
-function random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::Random.AbstractRNG)
-    as = fill(LaneFollowingAccelBlinker(0,0,false,false), pomdp.num_vehicles)
-    for (i, veh) in enumerate(s)
-        model = pomdp.models[veh.id]
-        observe!(model, s, pomdp.roadway, veh.id)
-        a = rand(rng, model, ignore_force = true)
-        as[veh.id] = a
-    end
-    as
-end
+# function random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::Random.AbstractRNG)
+#     as = fill(LaneFollowingAccelBlinker(0,0,false,false), pomdp.num_vehicles)
+#     for (i, veh) in enumerate(s)
+#         model = pomdp.models[veh.id]
+#         observe!(model, s, pomdp.roadway, veh.id)
+#         a = rand(rng, model, ignore_force = true)
+#         as[veh.id] = a
+#     end
+#     as
+# end
 
 # Converts from vector to state
 function POMDPs.convert_s(::Type{BlinkerScene}, s::AbstractArray{Float64}, pomdp::AdversarialADM)
