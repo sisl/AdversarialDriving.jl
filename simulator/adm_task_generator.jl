@@ -46,7 +46,7 @@ function generate_decomposed_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
     p_small = 1e-1
 
     stochastic_probs = [1 - (2*p_big + 2*p_small), p_big, p_small, p_small, p_big]
-    deterministic_probs = [1.0, 0., 0., 0., 0., 0.]
+    deterministic_probs = [1.0, 0., 0., 0., 0.]
 
 
     # Create the ego vehicle
@@ -62,9 +62,9 @@ function generate_decomposed_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
 
     # create list of other vehicles and models
     vehicles = [BV(VecSE2(polar(20.0, 0) + dy, -π), 20., goals[3], 3, false, 1, roadway),
-                BV(VecSE2(polar(35.0,-π) - dy, 0), 15., goals[2], 2, false, 1, roadway),
-                BV(VecSE2(polar(50.0,-π) - dy, 0), 20., goals[2], 2, false, 1, roadway),
-                BV(VecSE2(polar(10.0, 0) + dy, -π), 15., goals[4], 4, true, 1, roadway),
+                BV(VecSE2(polar(35.0,-π) - dy, 0), 19., goals[2], 2, false, 1, roadway),
+                BV(VecSE2(polar(40.0,-π) - dy, 0), 19., goals[2], 2, false, 1, roadway),
+                BV(VecSE2(polar(10.0, 0) + dy, -π), 14., goals[4], 4, true, 1, roadway),
                 ]
     p_blink = 1e-5
     p_goal= 1e-5

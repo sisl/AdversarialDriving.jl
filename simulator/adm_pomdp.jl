@@ -47,6 +47,7 @@ function AdversarialADM(models, roadway, egoid, intial_scene, dt)
             index += 1
         end
     end
+    action_probabilities = action_probabilities ./ sum(action_probabilities)
     @assert sum(action_probabilities) == 1
 
     # This code makes it so all vehicles can choose an action at one time
