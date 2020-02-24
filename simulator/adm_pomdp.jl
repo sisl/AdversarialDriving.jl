@@ -264,3 +264,16 @@ function POMDPs.isterminal(pomdp::AdversarialADM, s::BlinkerScene)
     length(s) == 0 || iscollision(pomdp, s) || any_collides(s)
 end
 
+function rollout(pomdp::AdversarialADM, actions::Array{Atype}, rng::AbstractRNG = Random.GLOBAL_RNG)
+    s = initialstate(pomdp)
+    i = 1
+    tot_r = 0
+    while !isterminal(s)
+        a = (i <= length(actions)) ? actions[i] : random_action(pomdp, s, rng)
+        s, r = gen(DDNOut((:sp, :r)), pomdp, s, a, rng)
+        tot_r += r
+        i += 1
+    end
+    return tot_r
+end
+
