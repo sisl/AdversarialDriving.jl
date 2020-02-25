@@ -3,7 +3,7 @@ include("generate_roadway.jl")
 include("adm_pomdp.jl")
 using Random
 
-function generate_2car_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
+function generate_2car_scene(;dt = 0.1, rng = Random.GLOBAL_RNG, ego_s = 15., ego_v = 9., other_s = 29., other_v = 20.)
     # Create the roadway
     roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy = generate_T_intersection()
     template = generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
@@ -19,10 +19,10 @@ function generate_2car_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
     egoid = 2
     egomodel = generate_TIDM_AST(template, p_toggle_blinker = 0., p_toggle_goal = 0., da_dist = DiscreteNonParametric(support, deterministic_probs))
     egomodel.force_action = false
-    egovehicle = BV(VecSE2(polar(15.0,-π/2) + dx, π/2), 9., goals[5], 5, true, egoid, roadway)
+    egovehicle = BV(VecSE2(polar(ego_s,-π/2) + dx, π/2), ego_v, goals[5], 5, true, egoid, roadway)
 
     # create other vehicle and model
-    vehicle = BV(VecSE2(polar(29.0,-π) - dy, 0), 10., goals[2], 2, false, 1, roadway)
+    vehicle = BV(VecSE2(polar(other_s,-π) - dy, 0), other_v, goals[2], 2, false, 1, roadway)
     p_blink = 1e-5
     p_goal= 1e-5
     model = generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs))

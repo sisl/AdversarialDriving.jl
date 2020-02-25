@@ -30,7 +30,7 @@ function AdversarialADM(models, roadway, egoid, intial_scene, dt)
     index = 1
 
     # First select the action where all of the cars do nothing
-    do_nothing_action = [index_to_action(1, models[i]) for i in 1:num_controllable_vehicles]
+    do_nothing_action = [index_to_action(1) for i in 1:num_controllable_vehicles]
     actions[index] = do_nothing_action
     action_to_index[do_nothing_action] = index
     action_probabilities[index] = action_probability(1)
@@ -39,8 +39,8 @@ function AdversarialADM(models, roadway, egoid, intial_scene, dt)
     # Then loop through all vehicles and give each one the possibilities of doing an action
     for vehid in 1:num_controllable_vehicles
         for aid in 2:ACT_PER_VEH # Skip the do-nothing action
-            a = [index_to_action(1, models[i]) for i in 1:num_controllable_vehicles]
-            a[vehid] = index_to_action(aid, models[vehid])
+            a = [index_to_action(1) for i in 1:num_controllable_vehicles]
+            a[vehid] = index_to_action(aid)
             actions[index] = a
             action_to_index[a] = index
             action_probabilities[index] = action_probability(aid) / num_controllable_vehicles
@@ -68,15 +68,14 @@ a_dim(num_controllable_vehicles::Int) = ACT_PER_VEH^num_controllable_vehicles
 a_dim(pomdp::AdversarialADM) = a_dim(pomdp.num_controllable_vehicles)
 
 
-function index_to_action(action::Int, model)
-    das = support(model.da_dist)
-    action == 1 && return LaneFollowingAccelBlinker(0, das[1], false, false)
-    action == 2 && return LaneFollowingAccelBlinker(0, das[2], false, false)
-    action == 3 && return LaneFollowingAccelBlinker(0, das[3], false, false)
-    action == 4 && return LaneFollowingAccelBlinker(0, das[4], false, false)
-    action == 5 && return LaneFollowingAccelBlinker(0, das[5], false, false)
-    action == 6 && return LaneFollowingAccelBlinker(0, 0., true, false)
-    action == 7 && return LaneFollowingAccelBlinker(0, 0., false, true)
+function index_to_action(action::Int)
+    action == 1 && return LaneFollowingAccelBlinker(0, 0., false, false)
+    action == 2 && return LaneFollowingAccelBlinker(0, -3., false, false)
+    action == 3 && return LaneFollowingAccelBlinker(0, -1.5, false, false)
+    action == 4 && return LaneFollowingAccelBlinker(0, 1.5, false, false)
+    action == 5 && return LaneFollowingAccelBlinker(0, 3., false, false)
+    action == 6 && return LaneFollowingAccelBlinker(0, 0., true, false) # toggle goal
+    action == 7 && return LaneFollowingAccelBlinker(0, 0., false, true) # toggle blinker
 end
 
 function action_probability(action::Int)
@@ -110,7 +109,7 @@ action_probability(pomdp::AdversarialADM, s::BlinkerScene, a::Atype) = 1. / leng
 true_action_probability(pomdp::AdversarialADM, s::BlinkerScene, a::Atype) = pomdp.action_probabilities[pomdp.action_to_index[a]]
     # prod([exp(action_logprob(pomdp.models[i], a[i])) for i in 1:pomdp.num_controllable_vehicles])
 
-random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::AbstractRNG) = mdp.actions[rand(rng, Categorical(pomdp.action_probabilities))]
+random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::AbstractRNG) = pomdp.actions[rand(rng, Categorical(pomdp.action_probabilities))]
 
 # Gets an action according to true probabilities of the agents
 # function random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::Random.AbstractRNG)
@@ -264,16 +263,20 @@ function POMDPs.isterminal(pomdp::AdversarialADM, s::BlinkerScene)
     length(s) == 0 || iscollision(pomdp, s) || any_collides(s)
 end
 
-function rollout(pomdp::AdversarialADM, actions::Array{Atype}, rng::AbstractRNG = Random.GLOBAL_RNG)
+function fixed_action_rollout(pomdp::AdversarialADM, actions::Array{Atype}, rng::AbstractRNG = Random.GLOBAL_RNG)
     s = initialstate(pomdp)
+    state_hist = [s]
     i = 1
     tot_r = 0
-    while !isterminal(s)
+    prob = 0
+    while !POMDPs.isterminal(pomdp, s)
         a = (i <= length(actions)) ? actions[i] : random_action(pomdp, s, rng)
+        prob += true_action_probability(pomdp, s, a)
         s, r = gen(DDNOut((:sp, :r)), pomdp, s, a, rng)
         tot_r += r
         i += 1
+        push!(state_hist, s)
     end
-    return tot_r
+    return state_hist, prob / (i-1), tot_r
 end
 

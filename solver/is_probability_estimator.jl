@@ -4,7 +4,7 @@ struct UniformISPolicy <: Policy
     rng
 end
 
-action(p::UniformISPolicy, s) = rand(rng, actions(mdp, s))
+POMDPs.action(p::UniformISPolicy, s) = rand(rng, actions(mdp, s))
 
 function action_and_prob(p::UniformISPolicy, s, rng)
     as = actions(mdp,s)

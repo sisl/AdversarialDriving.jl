@@ -10,7 +10,10 @@ using Plots; gr()
 rng = Random.GLOBAL_RNG
 
 # Define the action space
-A = DiscreteActionSpace(:a1 => [1,2,3,4,5,6,7])
+A = DiscreteActionSpace(:a1 => [1,2,3,4,5,6,7],
+                        :a2 => [1,2,3,4,5,6,7],
+                        :a3 => [1,2,3,4,5,6,7],
+                        :a4 => [1,2,3,4,5,6,7])
 
 # Define the probability distribution
 dist = Dict(1 => 1 - (4e-3 + 2e-2), 2 => 1e-3, 3=> 1e-2, 4 =>1e-2, 5=>1e-3, 6=>1e-3, 7=>1e-3)
@@ -19,17 +22,14 @@ dist = Dict(1 => 1 - (4e-3 + 2e-2), 2 => 1e-3, 3=> 1e-2, 4 =>1e-2, 5=>1e-3, 6=>1
 N = 20
 
 # Create the mdp
-# mdp = generate_2car_scene(dt = 0.18, ego_s = 15., ego_v = 9., other_s = 29., other_v = 10.) # Speedup failure
-# mdp = generate_2car_scene(dt = 0.18, ego_s = 15., ego_v = 9., other_s = 29., other_v = 20.) # Blinker failure
-mdp = generate_2car_scene(dt = 0.18, ego_s = 20., ego_v = 9., other_s = 37., other_v = 29.) # change speed and Blinker failure
-
+_, mdp = generate_decomposed_scene(dt = 0.18)
 h = POMDPSimulators.simulate(HistoryRecorder(rng = rng), mdp, FunctionPolicy((s) -> random_action(mdp, s, rng)))
 make_interact(state_hist(h), mdp.models, mdp.roadway, egoid=2)
 
 # Define the grammar
 grammar = @grammar begin
     R = (R && R)| (R || R) # "and" and "or" expressions for scalar values
-    R = all_before(τ, C) | all_after(τ, C) | all_between(τ, C, C)
+    R = all(τ) | any(τ) | all_before(τ, C) | all_after(τ, C) | all_between(τ, C, C)
     C = |(1:20)
     τ = (τ .& τ) | (τ .| τ) # "and" and "or" for boolean time series
     τ = _(sample_sym_comparison(A, Symbol(".=="))) # Sample a random equality comparison
@@ -75,7 +75,7 @@ end
 
 
 # Optimize:
-p = GeneticProgram(2000,40,10,0.3,0.3,0.4)
+p = GeneticProgram(1000,30,6,0.3,0.3,0.4)
 results_gp = optimize(p, grammar, :R, loss, verbose = true)
 post_prune = get_executable(prune(results_gp.tree, :R, grammar), grammar)
 println("loss: ", results_gp.loss, " expression (pre-prune): ", results_gp.expr, " expression(pos-prune): ", post_prune)
@@ -85,13 +85,13 @@ a = sample_series(results_gp.expr, A, [1.:N...], dist)
 aseq = convert_actions(mdp, a, N)
 state_h, prob, r = fixed_action_rollout(mdp, aseq)
 make_interact(state_h, mdp.models, mdp.roadway, egoid=2)
-write_scenes(state_h, mdp.models, mdp.roadway, "2car_res2_frame", egoid=2)
+write_scenes(state_h, mdp.models, mdp.roadway, "2car_res1_frame", egoid=2)
 
 # Compute and compare probability of action
 gp_failure_avg_prob = []
 is_failure_avg_prob = []
 for i=1:100
-    # print("i=$i, GP....")
+    print("i=$i, GP....")
     # Fill the average probability of the GP expression
     while true
         a = sample_series(results_gp.expr, A, [1.:N...], dist)
@@ -102,7 +102,7 @@ for i=1:100
             break
         end
     end
-    # println("Is...")
+    println("Is...")
     timeout = 1
     thresh = 1e3
     while true && timeout < thresh
@@ -153,8 +153,8 @@ function run_trials_gp(mdp, expr, Nsamps, Ntrials, rng)
 end
 
 # run_trials(mdp, FunctionPolicy((s)->random_action(mdp, s, rng)), Nsamples, Ntrials, rng)
-mean_gp, std_gp = run_trials_gp(mdp, results_gp.expr, Nsamples, Ntrials, rng)
 mean_is, std_is  = run_trials(mdp, UniformISPolicy(mdp, rng), Nsamples, Ntrials, rng)
+mean_gp, std_gp = run_trials_gp(mdp, results_gp.expr, Nsamples, Ntrials, rng)
 println("gp mean: ", mean_gp, " gp_std: ", std_gp)
 println("is mean: ", mean_is, " is_std: ", std_is)
 
