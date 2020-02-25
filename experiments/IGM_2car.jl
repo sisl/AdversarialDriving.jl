@@ -21,7 +21,7 @@ N = 20
 # Create the mdp
 # mdp = generate_2car_scene(dt = 0.18, ego_s = 15., ego_v = 9., other_s = 29., other_v = 10.) # Speedup failure
 # mdp = generate_2car_scene(dt = 0.18, ego_s = 15., ego_v = 9., other_s = 29., other_v = 20.) # Blinker failure
-mdp = generate_2car_scene(dt = 0.18, ego_s = 20., ego_v = 9., other_s = 37., other_v = 29.) # change speed and Blinker failure
+mdp = generate_2car_scene(dt = 0.18, ego_s = 19., ego_v = 9., other_s = 43., other_v = 29.) # change speed and Blinker failure
 
 h = POMDPSimulators.simulate(HistoryRecorder(rng = rng), mdp, FunctionPolicy((s) -> random_action(mdp, s, rng)))
 make_interact(state_hist(h), mdp.models, mdp.roadway, egoid=2)
@@ -85,7 +85,7 @@ a = sample_series(results_gp.expr, A, [1.:N...], dist)
 aseq = convert_actions(mdp, a, N)
 state_h, prob, r = fixed_action_rollout(mdp, aseq)
 make_interact(state_h, mdp.models, mdp.roadway, egoid=2)
-write_scenes(state_h, mdp.models, mdp.roadway, "2car_res2_frame", egoid=2)
+write_scenes(state_h, mdp.models, mdp.roadway, "2car_res3_frame", egoid=2)
 
 # Compute and compare probability of action
 gp_failure_avg_prob = []

@@ -3,7 +3,7 @@ include("generate_roadway.jl")
 include("adm_pomdp.jl")
 using Random
 
-function generate_2car_scene(;dt = 0.1, rng = Random.GLOBAL_RNG, ego_s = 15., ego_v = 9., other_s = 29., other_v = 20.)
+function generate_2car_scene(;dt = 0.1, rng = Random.GLOBAL_RNG, ego_s = 15., ego_v = 9., other_s = 29., other_v = 10.)
     # Create the roadway
     roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy = generate_T_intersection()
     template = generate_TIDM_AST(yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink)
