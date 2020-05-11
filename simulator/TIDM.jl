@@ -1,5 +1,5 @@
-using AutomotiveDrivingModels
-using AutoViz
+using AutomotiveSimulator
+using AutomotiveVisualization
 using Distributions
 using Parameters
 using LinearAlgebra
@@ -17,8 +17,8 @@ struct BlinkerState
     goals::Vector{Int} # The list of possible goals that this vehicle can have
 end
 
-AutomotiveDrivingModels.posf(s::BlinkerState) = posf(s.veh_state)
-AutomotiveDrivingModels.posg(s::BlinkerState) = s.veh_state.posG
+AutomotiveSimulator.posf(s::BlinkerState) = posf(s.veh_state)
+AutomotiveSimulator.posg(s::BlinkerState) = s.veh_state.posG
 vel(s::BlinkerState) = s.veh_state.v
 
 # Define a new Vehicle with the BlinkerVehicle
@@ -32,12 +32,12 @@ function BV(posG::VecSE2, v::Float64, goals::Vector{Int}, goal_lane::Int, blinke
 end
 
 # Define a scene that consists of Blinkervehicles
-const BlinkerScene = Frame{BlinkerVehicle}
-BlinkerScene(n::Int=100) = Frame(BlinkerVehicle, n)
+# const Scene = Scene{BlinkerVehicle}
+# Scene(n::Int=100) = Scene(BlinkerVehicle, n)
 
 # decomposes the scene into the vehicles indicated by the indices
-function decompose_scene(scene::BlinkerScene, ids::Vector{Int})
-    new_scene = BlinkerScene()
+function decompose_scene(scene::Scene, ids::Vector{Int})
+    new_scene = Scene(BlinkerVehicle)
     count = 1
     for i in ids
         push!(new_scene, set_veh_id(get_by_id(scene, i), count))
@@ -49,8 +49,8 @@ end
 # Decomposes the scene into each agent paired with the ego vehicle
 # The ego vehicle is assumed to be the last vehicle in the scene
 # TODO fix this
-function decompose_scene(scene::BlinkerScene, egoid::Int)
-    scenes = Dict{Int, BlinkerScene}()
+function decompose_scene(scene::Scene, egoid::Int)
+    scenes = Dict{Int, Scene}()
     if has_veh(egoid, scene)
         for i=1:egoid-1
             if has_veh(i, scene)
@@ -63,19 +63,19 @@ end
 
 
 # Convert BlinkerVehicle to Vehicle
-AutomotiveDrivingModels.Vehicle(b::BlinkerVehicle) = Vehicle(b.state.veh_state, b.def, b.id)
+AutomotiveSimulator.Entity(b::BlinkerVehicle) = Entity(b.state.veh_state, b.def, b.id)
 
 # Convert BlinkerScene to Scene
-function AutomotiveDrivingModels.Scene(bs::BlinkerScene)
-    s = Scene()
+function VehicleScene(bs::Scene)
+    s = Scene(Entity)
     for (i,veh) in enumerate(bs)
-        push!(s, Vehicle(veh))
+        push!(s, Entity(veh))
     end
     s
 end
 
 # Instruction on how to render a BlinkerVehicle
-AutoViz.render!(r::RenderModel, veh::BlinkerVehicle, c::Colorant) = render!(r, Vehicle(veh), c)
+# AutoViz.render!(r::RenderModel, veh::BlinkerVehicle, c::Colorant) = render!(r, Vehicle(veh), c)
 
 
 
@@ -92,7 +92,7 @@ struct LaneFollowingAccelBlinker
 end
 
 # The function that propogates the new action
-function AutomotiveDrivingModels.propagate(veh::BlinkerVehicle, action::LaneFollowingAccelBlinker, roadway::Roadway, Δt::Float64)
+function AutomotiveSimulator.propagate(veh::BlinkerVehicle, action::LaneFollowingAccelBlinker, roadway::Roadway, Δt::Float64)
     # set the new goal
     if action.toggle_goal
         curr_index = findfirst(veh.state.goals .== laneid(veh))
@@ -194,9 +194,6 @@ function Base.rand(rng::AbstractRNG, model::TIDM; ignore_force = false)
     end
  end
 
-# Name of the driving model
-AutomotiveDrivingModels.get_name(::TIDM) = "T-Intersection IDM"
-
 function lane_belief(veh::BlinkerVehicle, model::TIDM, roadway::Roadway)
     possible_lanes = model.goals[laneid(veh)]
     @assert length(possible_lanes) == 2
@@ -216,7 +213,7 @@ function lane_belief(veh::BlinkerVehicle, model::TIDM, roadway::Roadway)
 end
 
 # Observe function for TIDM
-function AutomotiveDrivingModels.observe!(model::TIDM, scene::BlinkerScene, roadway::Roadway, egoid::Int64)
+function AutomotiveSimulator.observe!(model::TIDM, scene::Scene, roadway::Roadway, egoid::Int64)
     # Pull out the necessary quantities
     vehicle_index = findfirst(egoid, scene)
     ego = scene[vehicle_index]
@@ -227,7 +224,7 @@ function AutomotiveDrivingModels.observe!(model::TIDM, scene::BlinkerScene, road
     time_to_cross = time_to_cross_distance_const_acc(ego, model.idm, distance_to_point(ego, roadway, model.intersection_exit_loc[li]))
 
     # Get headway to the forward car
-    fore = get_neighbor_fore_along_lane(Scene(scene), vehicle_index, roadway, VehicleTargetPointFront(), VehicleTargetPointRear(), VehicleTargetPointFront())
+    fore = find_neighbor(VehicleScene(scene), roadway, Entity(ego), targetpoint_ego = VehicleTargetPointFront(), targetpoint_neighbor = VehicleTargetPointRear())
 
     v_oth, for_car_headway = NaN, NaN
     if fore.ind != nothing
@@ -379,7 +376,7 @@ end
 
 # Check if a given car has reached the end of the roadway
 function end_of_road(veh, roadway)
-    veh = Vehicle(veh)
+    veh = Entity(veh)
     s = posf(veh.state).s
     lane = get_lane(roadway, veh)
     s_end = lane.curve[end].s
@@ -387,7 +384,7 @@ function end_of_road(veh, roadway)
 end
 
 # Removes cars that have reached the end of the lane
-function AutomotiveDrivingModels.run_callback(c::CleanSceneCallback, scenes::Vector{BlinkerScene}, actions::Nothing, roadway::R, models::Dict{I,M}, tick::Int) where {F,I,R,M<:DriverModel}
+function AutomotiveSimulator.run_callback(c::CleanSceneCallback, scenes::Vector{Scene}, actions::Nothing, roadway::R, models::Dict{I,M}, tick::Int) where {F,I,R,M<:DriverModel}
     for (i,veh) in enumerate(scenes[tick])
         if end_of_road(veh, roadway)
            deleteat!(scenes[tick], findfirst(veh.id, scenes[tick]))

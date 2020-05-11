@@ -27,7 +27,7 @@ function generate_2car_scene(;dt = 0.1, rng = Random.GLOBAL_RNG, ego_s = 15., eg
     p_goal= 1e-5
     model = generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs))
 
-    scene = BlinkerScene()
+    scene = Scene(BlinkerVehicle)
     push!(scene, vehicle)
     push!(scene, egovehicle)
     models = Dict{Int, DriverModel}(1 => model, 2=>egomodel)
@@ -73,14 +73,14 @@ function generate_decomposed_scene(;dt = 0.1, rng = Random.GLOBAL_RNG)
               generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs)),
               generate_TIDM_AST(template, p_toggle_blinker = p_blink, p_toggle_goal = p_goal, da_dist = DiscreteNonParametric(support, stochastic_probs))]
 
-    combined_scene = BlinkerScene()
+    combined_scene = Scene(BlinkerVehicle)
     combined_models = Dict{Int, DriverModel}()
 
     decomposed_pomdps = []
     # Create the mdps
     for i = 1:length(vehicles)
         # Create the local mdp
-        iscene = BlinkerScene()
+        iscene = Scene(BlinkerVehicle)
         push!(iscene, vehicles[i])
         push!(iscene, egovehicle)
         imodels = Dict{Int, DriverModel}()

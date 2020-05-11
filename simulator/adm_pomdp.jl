@@ -5,7 +5,7 @@ const OBS_PER_VEH_EXPANDED = 30
 const ACT_PER_VEH = 7
 const Atype = Array{LaneFollowingAccelBlinker}
 
-mutable struct AdversarialADM <: MDP{BlinkerScene, Atype}
+mutable struct AdversarialADM <: MDP{Scene, Atype}
     num_vehicles # The number of vehicles represented in the state and action spaces
     num_controllable_vehicles # Number of vehicles that will be part of the action space
     models # The models for the simulation
@@ -101,18 +101,18 @@ end
 
 
 POMDPs.actions(pomdp::AdversarialADM) = pomdp.actions
-POMDPs.actions(pomdp::AdversarialADM, state::Tuple{BlinkerScene, Float64}) = actions(pomdp)
+POMDPs.actions(pomdp::AdversarialADM, state::Tuple{Scene, Float64}) = actions(pomdp)
 POMDPs.actionindex(pomdp::AdversarialADM, a::Atype) = pomdp.action_to_index[a]
 
-action_probability(pomdp::AdversarialADM, s::BlinkerScene, a::Atype) = 1. / length(pomdp.actions)
+action_probability(pomdp::AdversarialADM, s::Scene, a::Atype) = 1. / length(pomdp.actions)
 
-true_action_probability(pomdp::AdversarialADM, s::BlinkerScene, a::Atype) = pomdp.action_probabilities[pomdp.action_to_index[a]]
+true_action_probability(pomdp::AdversarialADM, s::Scene, a::Atype) = pomdp.action_probabilities[pomdp.action_to_index[a]]
     # prod([exp(action_logprob(pomdp.models[i], a[i])) for i in 1:pomdp.num_controllable_vehicles])
 
-random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::AbstractRNG) = pomdp.actions[rand(rng, Categorical(pomdp.action_probabilities))]
+random_action(pomdp::AdversarialADM, s::Scene, rng::AbstractRNG) = pomdp.actions[rand(rng, Categorical(pomdp.action_probabilities))]
 
 # Gets an action according to true probabilities of the agents
-# function random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::Random.AbstractRNG)
+# function random_action(pomdp::AdversarialADM, s::Scene, rng::Random.AbstractRNG)
 #     as = fill(LaneFollowingAccelBlinker(0,0,false,false), pomdp.num_vehicles)
 #     for (i, veh) in enumerate(s)
 #         model = pomdp.models[veh.id]
@@ -124,8 +124,8 @@ random_action(pomdp::AdversarialADM, s::BlinkerScene, rng::AbstractRNG) = pomdp.
 # end
 
 # Converts from vector to state
-function POMDPs.convert_s(::Type{BlinkerScene}, s::AbstractArray{Float64}, pomdp::AdversarialADM)
-    new_scene = BlinkerScene()
+function POMDPs.convert_s(::Type{Scene}, s::AbstractArray{Float64}, pomdp::AdversarialADM)
+    new_scene = Scene(BlinkerVehicle)
     Nveh = Int(length(s) / OBS_PER_VEH)
 
     # Loop through the vehicles in the scene, apply action and add to next scene
@@ -174,7 +174,7 @@ function to_expanded_vec(veh::BlinkerVehicle)
 end
 
 # Convert from state to vector (this one is simple )
-function POMDPs.convert_s(::Type{Array{Float64, 1}}, state::BlinkerScene, pomdp::AdversarialADM)
+function POMDPs.convert_s(::Type{Array{Float64, 1}}, state::Scene, pomdp::AdversarialADM)
     o = deepcopy(pomdp.last_observation)
     for (ind,veh) in enumerate(state)
         o[(veh.id-1)*OBS_PER_VEH + 1: veh.id*OBS_PER_VEH] .= to_vec(veh)
@@ -183,10 +183,10 @@ function POMDPs.convert_s(::Type{Array{Float64, 1}}, state::BlinkerScene, pomdp:
     o
 end
 
-POMDPs.convert_s(::Type{AbstractArray}, state::BlinkerScene, pomdp::AdversarialADM) = convert_s(Array{Float64,1}, state, pomdp)
-POMDPs.convert_s(::Type{AbstractArray}, state::BlinkerScene, pomdp::AdversarialADM) = convert_s(Array{Float64,1}, state, pomdp)
+POMDPs.convert_s(::Type{AbstractArray}, state::Scene, pomdp::AdversarialADM) = convert_s(Array{Float64,1}, state, pomdp)
+POMDPs.convert_s(::Type{AbstractArray}, state::Scene, pomdp::AdversarialADM) = convert_s(Array{Float64,1}, state, pomdp)
 
-function convert_s_expanded(::Type, state::BlinkerScene, pomdp::AdversarialADM)
+function convert_s_expanded(::Type, state::Scene, pomdp::AdversarialADM)
     v = zeros(OBS_PER_VEH_EXPANDED*pomdp.num_vehicles)
     for (ind,veh) in enumerate(state)
         v[(veh.id-1)*OBS_PER_VEH_EXPANDED + 1: veh.id*OBS_PER_VEH_EXPANDED] .= to_expanded_vec(veh)
@@ -202,11 +202,11 @@ POMDPs.initialstate(pomdp::AdversarialADM, rng::AbstractRNG = Random.GLOBAL_RNG)
 POMDPs.initialstate_distribution(pomdp::AdversarialADM) = Deterministic(pomdp.initial_scene)
 
 # Get the reward from the actions taken and the next state
-POMDPs.reward(pomdp::AdversarialADM, s::BlinkerScene, a::Atype, sp::BlinkerScene) = iscollision(pomdp, sp)
+POMDPs.reward(pomdp::AdversarialADM, s::Scene, a::Atype, sp::Scene) = iscollision(pomdp, sp)
 
 # Step the scene forward by one timestep and return the next state
-function step_scene(pomdp::AdversarialADM, s::BlinkerScene, actions::Atype, rng::AbstractRNG = Random.GLOBAL_RNG)
-    new_scene = BlinkerScene()
+function step_scene(pomdp::AdversarialADM, s::Scene, actions::Atype, rng::AbstractRNG = Random.GLOBAL_RNG)
+    new_scene = Scene(BlinkerVehicle)
 
     # Loop through the vehicles in the scene, apply action and add to next scene
     for (i, veh) in enumerate(s)
@@ -233,11 +233,11 @@ function step_scene(pomdp::AdversarialADM, s::BlinkerScene, actions::Atype, rng:
     return new_scene
 end
 
-POMDPs.gen(::DDNOut{(:sp, :r)}, mdp::AdversarialADM, s::BlinkerScene, a::Atype, rng::AbstractRNG = Random.GLOBAL_RNG) = gen(mdp, s, a, rng)
+POMDPs.gen(::DDNOut{(:sp, :r)}, mdp::AdversarialADM, s::Scene, a::Atype, rng::AbstractRNG = Random.GLOBAL_RNG) = gen(mdp, s, a, rng)
 
 
 # The generative interface to the POMDP
-function POMDPs.gen(pomdp::AdversarialADM, s::BlinkerScene, a::Atype, rng::Random.AbstractRNG = Random.GLOBAL_RNG)
+function POMDPs.gen(pomdp::AdversarialADM, s::Scene, a::Atype, rng::Random.AbstractRNG = Random.GLOBAL_RNG)
     # Simulate the scene forward one timestep
     # Try to use the existing simulate function
     sp = step_scene(pomdp, s, a, rng)
@@ -256,10 +256,10 @@ end
 POMDPs.discount(pomdp::AdversarialADM) = 1.
 
 # Check if there is a collision with the ego vehicle in the scene
-iscollision(pomdp::AdversarialADM, s::BlinkerScene) = length(s) > 0 && ego_collides(pomdp.egoid, s)
+iscollision(pomdp::AdversarialADM, s::Scene) = length(s) > 0 && ego_collides(pomdp.egoid, s)
 
 # The simulation is terminal if there is collision with the ego vehicle or if the maximum simulation time has been reached
-function POMDPs.isterminal(pomdp::AdversarialADM, s::BlinkerScene)
+function POMDPs.isterminal(pomdp::AdversarialADM, s::Scene)
     length(s) == 0 || iscollision(pomdp, s) || any_collides(s)
 end
 

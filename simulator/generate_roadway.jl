@@ -1,4 +1,4 @@
-using AutomotiveDrivingModels
+using AutomotiveSimulator
 
 # Appends curves to an existing curve
 function append_to_curve!(target::Curve, newstuff::Curve)

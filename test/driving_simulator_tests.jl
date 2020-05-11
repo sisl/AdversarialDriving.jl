@@ -27,7 +27,7 @@ das = support(decomposed[1].models[1].da_dist)
 @test decomposed[1].actions[5] == [LaneFollowingAccelBlinker(0, das[5], false, false)]
 @test decomposed[1].actions[6] == [LaneFollowingAccelBlinker(0, 0, true, false)]
 @test decomposed[1].actions[7] == [LaneFollowingAccelBlinker(0, 0, false, true)]
-@test length(pomdp.actions) == 7^4
+@test length(pomdp.actions) == 6(4) + 1
 for i=1:length(pomdp.actions)
     @test pomdp.action_to_index[pomdp.actions[i]] == i
     @test pomdp.action_to_index[pomdp.actions[i]] == actionindex(pomdp, actions(pomdp)[i])
@@ -82,15 +82,15 @@ svec_expanded = convert_s_expanded(AbstractArray, s, pomdp)
 @test svec[3] == laneid(s.entities[1])
 @test svec[4] == s.entities[1].state.blinker
 
-@test svec == convert_s(AbstractArray, convert_s(BlinkerScene, svec, pomdp), pomdp)
-
+@test svec == convert_s(AbstractArray, convert_s(Scene, svec, pomdp), pomdp)
+convert_s(AbstractArray, convert_s(Scene, svec, pomdp), pomdp)
 # try out collision checking, reward and discount
 @test discount(pomdp) == 1
 @test !iscollision(pomdp, s)
 @test !isterminal(pomdp, s)
 svec[1] = 50
 svec[17] = 50
-s_coll = convert_s(BlinkerScene, svec, pomdp)
+s_coll = convert_s(Scene, svec, pomdp)
 @test iscollision(pomdp, s_coll)
 @test isterminal(pomdp, s_coll)
 
@@ -99,7 +99,7 @@ svec[5] = 100
 svec[9] = 100
 svec[13] = 100
 svec[17] = 100
-s_no_cars = convert_s(BlinkerScene, svec, pomdp)
+s_no_cars = convert_s(Scene, svec, pomdp)
 @test length(s_no_cars) == 0
 @test isterminal(pomdp, s_no_cars)
 

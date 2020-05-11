@@ -37,6 +37,20 @@ println("Monte-Carlo Rollouts failed: ", mc_failures, " ± ", mc_std, " / ", Nsa
 ######### Importance Sampling (uniform distribution) Approach ################
 is_policy = UniformISPolicy(mdp, rng)
 is_failures, is_std = run_trials(mdp, is_policy, Nsamples, Ntrials, rng)
+
+## This is to output a vecotr of scenes
+while true
+    global hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, is_policy)
+    if undiscounted_reward(hist) > 0
+        break
+    end
+end
+undiscounted_reward(hist)
+scenes = collect(state_hist(hist))
+serialize("roadway.jls", mdp.roadway)
+serialize("vector_of_scenes.jls", scenes)
+
+
 # is_mean_arr, is_std_arr = compute_mean(50000, mdp, is_policy, rng)
 println("Importance Sampling Rollouts failed: ", is_failures, " ± ", is_std, " / ", Nsamples)
 
