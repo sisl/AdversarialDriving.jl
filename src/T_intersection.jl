@@ -1,5 +1,3 @@
-using AutomotiveSimulator
-
 # Appends curves to an existing curve
 function append_to_curve!(target::Curve, newstuff::Curve)
     s_end = target[end].s
@@ -16,7 +14,7 @@ end
 # dx is half lane shift in the x direction
 # dy is half lane shift in the y direction
 # r is the turn radius for the intersection
-function generate_T_intersection(; LP = VecE2(-50,0), RP = VecE2(50,0), BP = VecE2(0,-50), C = VecE2(0,0), dx = VecE2(DEFAULT_LANE_WIDTH / 2, 0), dy = VecE2(0, DEFAULT_LANE_WIDTH / 2), r = 4.)
+function T_intersection(; LP = VecE2(-50,0), RP = VecE2(50,0), BP = VecE2(0,-50), C = VecE2(0,0), dx = VecE2(DEFAULT_LANE_WIDTH / 2, 0), dy = VecE2(0, DEFAULT_LANE_WIDTH / 2), r = 4.)
 
     # Setup the roadway
     roadway = Roadway()
@@ -107,8 +105,15 @@ function generate_T_intersection(; LP = VecE2(-50,0), RP = VecE2(50,0), BP = Vec
     return roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy
 end
 
+# Strings describing the goal of each lane
+T_int_goal_label = Dict(1 => "turn right", 2 =>"straight", 3=>"straight", 4=>"turn left", 5=>"turn left", 6=> "turn right")
 
-
-
-
-
+# whether the signal is on the right side
+T_int_signal_right = Dict(
+    1 => true,
+    2 => true,
+    3 => false,
+    4 => false,
+    5 => false,
+    6 => true
+    )
