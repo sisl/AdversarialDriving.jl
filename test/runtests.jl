@@ -1,3 +1,3 @@
-include("TIDM_tests.jl")
-include("mdp_tests.jl")
+include("model_tests.jl")
+# include("mdp_tests.jl")
 

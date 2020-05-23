@@ -1,13 +1,13 @@
 const OBS_PER_VEH = 4 # Position, velocity, lane, blinker
 const OBS_PER_VEH_EXPANDED = 30
-const Atype = Array{LaneFollowingAccelBlinker}
-const ACTIONS = [ LaneFollowingAccelBlinker(0, 0., false, false),
-                        LaneFollowingAccelBlinker(0, -3., false, false),
-                        LaneFollowingAccelBlinker(0, -1.5, false, false),
-                        LaneFollowingAccelBlinker(0, 1.5, false, false),
-                        LaneFollowingAccelBlinker(0, 3., false, false),
-                        LaneFollowingAccelBlinker(0, 0., true, false), # toggle goal
-                        LaneFollowingAccelBlinker(0, 0., false, true) # toggle blinker
+const Atype = Array{BlinkerVehicleControl}
+const ACTIONS = [ BlinkerVehicleControl(0, 0., false, false, Noise()),
+                        BlinkerVehicleControl(0, -3., false, false, Noise()),
+                        BlinkerVehicleControl(0, -1.5, false, false, Noise()),
+                        BlinkerVehicleControl(0, 1.5, false, false, Noise()),
+                        BlinkerVehicleControl(0, 3., false, false, Noise()),
+                        BlinkerVehicleControl(0, 0., true, false, Noise()), # toggle goal
+                        BlinkerVehicleControl(0, 0., false, true, Noise()) # toggle blinker
                         ]
 const ACTION_PROB = [1 - (4e-3 + 2e-2), 1e-3, 1e-2, 1e-2, 1e-3, 1e-3, 1e-3]
 

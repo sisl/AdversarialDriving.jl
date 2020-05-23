@@ -7,6 +7,78 @@ function append_to_curve!(target::Curve, newstuff::Curve)
     return target
 end
 
+# Get the lane object by index from the roadway
+roadway_lane(roadway::Roadway, laneid::Int) = roadway.segments[laneid].lanes[1]
+
+# Get the frenet position for provided lane id
+function AutomotiveSimulator.Frenet(roadway::Roadway, laneid::Int, s::Float64, t::Float64 = 0., ϕ::Float64 = 0.)
+    Frenet(roadway_lane(roadway, laneid), s, t, ϕ)
+end
+
+## Straight roadway with a crosswalk
+struct Crosswalk
+    crosswalk::Lane
+end
+
+# Render the crosswalk
+function AutomotiveVisualization.add_renderable!(rendermodel::RenderModel, env::Crosswalk)
+    curve = env.crosswalk.curve
+    n = length(curve)
+    pts = Array{Float64}(undef, 2, n)
+    for (i,pt) in enumerate(curve)
+        pts[:,i] .= pt.pos[1:2]
+    end
+
+    add_instruction!(
+        rendermodel, render_dashed_line,
+        (pts, colorant"white", env.crosswalk.width, 1.0, 1.0, 0.0, 0)
+    )
+    rendermodel
+end
+
+function road_with_crosswalk(; roadway_length = 50., crosswalk_length = 20., crosswalk_width = 6.0, crosswalk_pos = roadway_length/2)
+    # Generate a straight 2-lane roadway and a crosswalk lane
+    roadway = gen_straight_roadway(2, roadway_length)
+    crosswalk_start = VecE2(crosswalk_pos, -crosswalk_length/2)
+    crosswalk_end = VecE2(crosswalk_pos, crosswalk_length/2)
+    crosswalk_lane = gen_straight_curve(crosswalk_start, crosswalk_end, 2)
+    crosswalk = Lane(LaneTag(2,1), crosswalk_lane, width = crosswalk_width)
+    cw_segment = RoadSegment(2, [crosswalk])
+    push!(roadway.segments, cw_segment) # append it to the roadway
+
+
+    # Describes which lanes each lane should yield to (i.e. lane 4 yields to 1 and 2)
+    yields_way = Dict(1=>[2], 2=>[])
+
+    # The entry point of the intersection for each lane
+    intersection_enter_loc = Dict(
+        1 => VecSE2(crosswalk_pos - crosswalk_width /2., 0., 0),
+        2 => VecSE2(crosswalk_pos, -DEFAULT_LANE_WIDTH / 2., 0)
+        )
+
+    # the exit point of the intersection for each lane
+    intersection_exit_loc = Dict(
+        1 => VecSE2(crosswalk_pos + crosswalk_width /2., 0., 0),
+        2 => VecSE2(crosswalk_pos, DEFAULT_LANE_WIDTH / 2., 0)
+        )
+
+    goals = Dict{Int64, Array{Int}}(
+        1 => [1],
+        2 => [2],
+        )
+
+    should_blink = Dict{Int64, Bool}(
+        1 => false,
+        2 => false,
+        )
+
+    roadway, Crosswalk(crosswalk), yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink
+end
+
+ped_roadway, crosswalk, ped_yields_way, ped_intersection_enter_loc, ped_intersection_exit_loc, ped_goals, ped_should_blink = road_with_crosswalk()
+
+## T-Intersection Roadway
+
 # LP is the left-most point in between upper and lower lanes
 # RP is the Right-most point in between upper and lower lanes
 # BP is the Bottom-most point in between left and right lanes
@@ -102,14 +174,14 @@ function T_intersection(; LP = VecE2(-50,0), RP = VecE2(50,0), BP = VecE2(0,-50)
         6 => true,
         )
 
-    return roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink, dx, dy
+    return roadway, yields_way, intersection_enter_loc, intersection_exit_loc, goals, should_blink
 end
 
 # Strings describing the goal of each lane
-T_int_goal_label = Dict(1 => "turn right", 2 =>"straight", 3=>"straight", 4=>"turn left", 5=>"turn left", 6=> "turn right")
+Tint_goal_label = Dict(1 => "turn right", 2 =>"straight", 3=>"straight", 4=>"turn left", 5=>"turn left", 6=> "turn right")
 
 # whether the signal is on the right side
-T_int_signal_right = Dict(
+Tint_signal_right = Dict(
     1 => true,
     2 => true,
     3 => false,
@@ -117,3 +189,23 @@ T_int_signal_right = Dict(
     5 => false,
     6 => true
     )
+
+# Construct a global T-intersection to be used
+Tint_roadway, Tint_yields_way, Tint_intersection_enter_loc, Tint_intersection_exit_loc, Tint_goals, Tint_should_blink = T_intersection()
+
+# Construct template TIDM models (one for each roadway)
+
+Tint_TIDM_template = TIDM(yields_way = Tint_yields_way,
+                    intersection_enter_loc = Tint_intersection_enter_loc,
+                    intersection_exit_loc = Tint_intersection_exit_loc,
+                    goals = Tint_goals,
+                    should_blink = Tint_should_blink
+                    )
+
+
+ped_TIDM_template = TIDM(yields_way = ped_yields_way,
+                        intersection_enter_loc = ped_intersection_enter_loc,
+                        intersection_exit_loc = ped_intersection_exit_loc,
+                        goals = ped_goals,
+                        should_blink = ped_should_blink
+                        )
