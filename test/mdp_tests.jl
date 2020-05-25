@@ -1,98 +1,110 @@
 using AdversarialDriving
 using AutomotiveSimulator
+using AutomotiveVisualization
 using POMDPSimulators
 using POMDPPolicies
 using POMDPs
 using Test
 
-# Construct a 3-car MDP (with and without state expansion)
-scene = Scene([left_straight(1), right_turnleft(2), ego(3)])
-models = Dict(i => TIDM(TIDM_template) for i=1:3)
-egoid = 3
-dt = 0.18
-mdp = AdversarialDrivingMDP(scene, models, Tint_roadway, egoid, dt)
-mdp_exp = AdversarialDrivingMDP(scene, models, Tint_roadway, egoid, dt, expand_state_space = true)
+## Test construction of a BV
+bv1 = BlinkerVehicleAgent(up_left(10), TIDM(Tint_TIDM_template))
+@test bv1.initial_entity.state isa BlinkerState
+@test bv1.model.idm == Tint_TIDM_template.idm
+@test bv1.num_obs == BLINKERVEHICLE_OBS
+@test length(bv1.to_vec(bv1.initial_entity)) == BLINKERVEHICLE_OBS
+@test bv1.to_vec(bv1.initial_entity)  == bv1.to_vec(bv1.to_entity(bv1.to_vec(bv1.initial_entity), id(bv1), Tint_roadway, bv1.model))
+@test bv1.actions == BV_ACTIONS
+@test bv1.action_prob == BV_ACTION_PROB
+@test id(bv1) == 10
 
 
-# Test MDP members
-@test mdp.num_vehicles == 3
-@test mdp.num_controllable_vehicles == 2
-@test mdp.models == models
-@test mdp.egoid == egoid
-@test mdp.dt == dt
-@test isnothing(mdp.last_observation)
-@test discount(mdp) == 1.
-@test mdp.discount == 1.
-@test mdp.expand_state_space == false
-@test mdp_exp.expand_state_space == true
-@test initialstate(mdp) == scene
+## Test construction of a Adversarial Pedestrian
+ped1 = NoisyPedestrianAgent(ez_pedestrian(2, 0., 4.), AdversarialPedestrian())
+@test ped1.initial_entity.state isa NoisyPedState
+@test ped1.num_obs == PEDESTRIAN_OBS
+@test length(ped1.to_vec(ped1.initial_entity)) == PEDESTRIAN_OBS
+@test ped1.to_vec(ped1.initial_entity)  == ped1.to_vec(ped1.to_entity(ped1.to_vec(ped1.initial_entity), id(ped1), ped_roadway, ped1.model))
+@test ped1.actions == []
+@test ped1.action_prob == []
+@test id(ped1) == 2
 
-# Test action construction, probabilities and indexing
-@test length(mdp.actions) == 13
-@test mdp.actions[1] == [ACTIONS[1], ACTIONS[1]]
-@test mdp.actions[2] == [ACTIONS[2], ACTIONS[1]]
-@test mdp.actions[7] == [ACTIONS[7], ACTIONS[1]]
-@test mdp.actions[8] == [ACTIONS[1], ACTIONS[2]]
-@test mdp.actions[13] == [ACTIONS[1], ACTIONS[7]]
+# #Test construction of a full MDP with BV in the Tintersection
+bv2 = BlinkerVehicleAgent(left_straight(2), TIDM(Tint_TIDM_template))
+bv3 = BlinkerVehicleAgent(right_turnleft(3), TIDM(Tint_TIDM_template))
+bv4 = BlinkerVehicleAgent(left_turnright(4, s=40.), TIDM(Tint_TIDM_template))
+mdp = AdversarialDrivingMDP(bv1, [bv2, bv3, bv4], Tint_roadway, 0.1)
 
-for i=1:13
-    @test actions(mdp)[i] == mdp.actions[i]
-    @test actionindex(mdp, actions(mdp)[i]) == i
-end
-@test isapprox(ACTION_PROB[1], action_probability(mdp, scene, actions(mdp)[1]))
-aprob2 = action_probability(mdp, scene, actions(mdp)[2])
-aprob3 = action_probability(mdp, scene, actions(mdp)[3])
-@test isapprox(aprob3/aprob2, 10.)
+@test agents(mdp) == [adversaries(mdp)..., sut(mdp)]
+@test sutid(mdp) == 10
+@test length(agents(mdp)) == 4
+@test model(mdp, 10) == agents(mdp)[4].model
+@test model(mdp, 2) == agents(mdp)[1].model
+@test model(mdp, 3) == agents(mdp)[2].model
+@test model(mdp, 4) == agents(mdp)[3].model
+@test mdp.num_adversaries == 3
+@test mdp.roadway == Tint_roadway
+@test mdp.initial_scene[1] == bv2.initial_entity
+@test mdp.initial_scene[2] == bv3.initial_entity
+@test mdp.initial_scene[3] == bv4.initial_entity
+@test mdp.initial_scene[4] == bv1.initial_entity
+@test mdp.dt == 0.1
+@test mdp.last_observation == Float64[]
+@test length(convert_s(AbstractArray, mdp.initial_scene, mdp)) == 16
+@test mdp.last_observation == convert_s(AbstractArray, mdp.initial_scene, mdp)
+acts, action_id, action_prob = construct_discrete_actions(collect(adversaries(mdp)))
+@test mdp.actions == acts
+@test actions(mdp) == mdp.actions
+@test mdp.action_to_index == action_id
+@test actionindex(mdp, acts[4]) == 4
+@test mdp.action_probabilities == action_prob
+@test action_probability(mdp, initialstate(mdp), acts[6]) == action_prob[6]
+@test mdp.γ == discount(mdp)
+@test mdp.γ == 1.
 
+## Test the update_adversary! function
+bv5 = BlinkerVehicleAgent(left_straight(5), TIDM(Tint_TIDM_template))
+s = initialstate(mdp)
+sbefore = deepcopy(s)
 
-# Test convert_s
-svec = convert_s(AbstractArray, scene, mdp)
-@test length(svec) == 4*3
-for i=1:3
-    veh = scene[i]
-    b = 4*(i-1)
-    @test posf(veh).s == svec[b + 1]
-    @test vel(veh) == svec[b + 2]
-    @test laneid(veh) == svec[b + 3]
-    @test veh.state.blinker == svec[b + 4]
-end
+update_adversary!(bv5, actions(mdp)[2][1], s)
+@test all([noise(s[i]) == noise(sbefore[i]) for i=1:4])
 
-svec_exp = convert_s(AbstractArray, scene, mdp_exp)
-@test length(svec_exp) == 90
-@test sum(svec_exp .== 0) == 76 # One nonzero out of every 6 (extra zeros for blinkers)
+noise_action = BlinkerVehicleControl(noise = Noise((0.2, 0.3), 1.))
+update_adversary!(agents(mdp)[1], noise_action, s).state.noise.pos
+@test noise(s[1]).pos == noise_action.noise.pos
+@test noise(s[1]).vel == noise_action.noise.vel
+@test model(mdp, id(agents(mdp)[1])).next_action == noise_action
 
-# Convert the scene back
-scene_back = convert_s(Scene, svec, mdp)
-for i=1:length(scene)
-    veh, veh_back = scene[i], scene_back[i]
-    @test all(isapprox.(posg(veh), posg(veh_back)))
-    @test isapprox(vel(veh), vel(veh_back))
-    @test laneid(veh) == laneid(veh_back)
-    @test veh.state.blinker == veh.state.blinker
-end
-
-# Test reward, isterminal
+## Test reward, isterminal
 empty_scene = Scene(Entity{BlinkerState, VehicleDef, Int64})
-coll_scene = Scene([left_straight(1, s=50.), right_turnleft(2, s=50.), ego(3)])
-ego_coll_scene = Scene([left_straight(1, s=50.), right_turnleft(2), ego(3, s=50.)])
+coll_scene = Scene([left_straight(1, s=50.), right_turnleft(2, s=50.), up_left(10)])
+ego_coll_scene = Scene([left_straight(1, s=50.), right_turnleft(2), up_left(10, s=50.)])
 
-@test !isterminal(mdp, scene)
+@test !isterminal(mdp, s)
 @test isterminal(mdp, empty_scene)
 @test isterminal(mdp, coll_scene)
 @test isterminal(mdp, ego_coll_scene)
 
-@test reward(mdp, scene, mdp.actions[1], coll_scene) == 0.
-@test reward(mdp, scene, mdp.actions[1], ego_coll_scene) == 1.0
+@test reward(mdp, s, actions(mdp)[1], coll_scene) == 0.
+@test reward(mdp, s, actions(mdp)[1], ego_coll_scene) == 1.0
 
 # Test gen using action comparisons
-sp, r = gen(mdp, scene, mdp.actions[1])
-sp2, r2 = gen(mdp, scene, mdp.actions[2]) # Slowdown of first adversary
-@test vel(get_by_id(sp, 1)) > vel(get_by_id(sp2, 1))
+sp, r = gen(mdp, s, actions(mdp)[1])
+sp2, r2 = gen(mdp, s, actions(mdp)[2]) # Slowdown of first adversary
+@test vel(get_by_id(sp, 2)) > vel(get_by_id(sp2, 2))
 
 
 # Run full simulation with random policy
 mdp.dt = 0.1
-scene = Scene([left_straight(1), right_turnleft(2), ego(3, s=35., vel=12.)])
-mdp.initial_scene = scene
-hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> mdp.actions[1]))
-@test length(hist) == 81
+hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> actions(mdp)[1]))
+@test length(hist) == 15
+# nticks = length(hist)
+# timestep = mdp.dt
+# scenes = state_hist(hist)
+# using Reel
+# animation = roll(fps=1.0/timestep, duration=nticks*timestep) do t, dt
+#     i = Int(floor(t/dt)) + 1
+#     render([Tint_roadway, crosswalk, scenes[i]], canvas_width=1200, canvas_height=800)
+# end
+# write("ped_roadway_animated.gif", animation)
+

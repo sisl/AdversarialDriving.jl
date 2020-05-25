@@ -36,7 +36,10 @@ function AutomotiveVisualization.add_renderable!(rendermodel::RenderModel, env::
     rendermodel
 end
 
-function road_with_crosswalk(; roadway_length = 50., crosswalk_length = 20., crosswalk_width = 6.0, crosswalk_pos = roadway_length/2)
+# The crosswalk is lane 2 in the function below
+const DEFAULT_CROSSWALK_LANE = 2
+
+function road_with_crosswalk(; roadway_length = 50., crosswalk_length = 20., crosswalk_width = 6.0, crosswalk_pos = roadway_length/2, )
     # Generate a straight 2-lane roadway and a crosswalk lane
     roadway = gen_straight_roadway(2, roadway_length)
     crosswalk_start = VecE2(crosswalk_pos, -crosswalk_length/2)

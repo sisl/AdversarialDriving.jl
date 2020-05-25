@@ -9,16 +9,16 @@ end
 abstract type NoisyState end
 
 # State for a pedestrian that has noise
-struct NoisyPedState <: NoisyState
+@with_kw struct NoisyPedState <: NoisyState
     veh_state::VehicleState # Noise on position and velocity
     noise::Noise # Noise on position and velocity
 end
 
 # State for vehicles with blinkers, lane intention and noise
-struct BlinkerState <: NoisyState
+@with_kw struct BlinkerState <: NoisyState
     veh_state::VehicleState # position and velocity
     blinker::Bool # Whether or not the blinker is on
-    goals::Vector{Int} # The list of possible goals that this vehicle can have
+    goals::Array{Int} # The list of possible goals that this vehicle can have
     noise::Noise # Noise on position and velocity
 end
 
@@ -72,7 +72,7 @@ end
 const PEDESTRIAN_DEF = VehicleDef(AgentClass.PEDESTRIAN, 1.0, 1.0)
 
 # Constructor for making a blinker vehicle
-function BlinkerVehicle(;roadway::Roadway, lane::Int, s::Float64, v::Float64, id::Int, goals::Vector{Int}, blinker::Bool, t::Float64 = 0., ϕ::Float64 = 0., noise::Noise = Noise())
+function BlinkerVehicle(;roadway::Roadway, lane::Int, s::Float64, v::Float64, id::Int, goals::Array{Int}, blinker::Bool, t::Float64 = 0., ϕ::Float64 = 0., noise::Noise = Noise())
     f = Frenet(roadway, lane, s, t, ϕ)
     bs = BlinkerState(VehicleState(f, roadway, v), blinker, goals, noise)
     Entity(bs, VehicleDef(), id)
@@ -195,10 +195,10 @@ end
     next_action::BlinkerVehicleControl = BlinkerVehicleControl() # The next action that the model will do (for controllable vehicles)
 
     # Describes the intersection and rules of the road
-    yields_way::Dict{Int64, Vector{Int64}} = Dict() # Lane priorities
+    yields_way::Dict{Int64, Array{Int64}} = Dict() # Lane priorities
     intersection_enter_loc::Dict{Int64, VecSE2} = Dict() # Entry location of intersection
     intersection_exit_loc::Dict{Int64, VecSE2} = Dict()  # Exit location of intersection
-    goals::Dict{Int64, Vector{Int64}} = Dict() # Possible goals of each lane
+    goals::Dict{Int64, Array{Int64}} = Dict() # Possible goals of each lane
     should_blink::Dict{Int64, Bool} = Dict()  # Wether or not the blinker should be on
 end
 
@@ -395,7 +395,7 @@ function end_of_road(veh, roadway)
 end
 
 # Removes cars that have reached the end of the lane
-function AutomotiveSimulator.run_callback(c::CleanSceneCallback, scenes::Vector{Scene}, actions::Nothing, roadway::R, models::Dict{I,M}, tick::Int) where {F,I,R,M<:DriverModel}
+function AutomotiveSimulator.run_callback(c::CleanSceneCallback, scenes::Array{Scene}, actions::Nothing, roadway::R, models::Dict{I,M}, tick::Int) where {F,I,R,M<:DriverModel}
     for (i,veh) in enumerate(scenes[tick])
         if end_of_road(veh, roadway)
            deleteat!(scenes[tick], findfirst(veh.id, scenes[tick]))
