@@ -43,7 +43,7 @@ function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Road
     scene = Scene([a.initial_entity for a in agents])
     o = Float64[] # Last observation
 
-    as, a2i, aprob = discrete ? construct_discrete_actions(adversaries) : (Array{Distrubance}[], Dict{Array{Disturbance}, Int64}(), Float64[])
+    as, a2i, aprob = discrete ? construct_discrete_actions(adversaries) : (Array{Disturbance}[], Dict{Array{Disturbance}, Int64}(), Float64[])
     AdversarialDrivingMDP(agents, d, Na, road, scene, dt, o, as, a2i, aprob, γ)
 end
 
@@ -94,7 +94,7 @@ function step_scene(mdp::AdversarialDrivingMDP, s::Scene, actions::Array{Disturb
         bv = Entity(propagate(veh, a, mdp.roadway, mdp.dt), veh.def, veh.id)
         !end_of_road(bv, mdp.roadway) && push!(entities, bv)
     end
-    return Scene([entities...])
+    isempty(entities) ? Scene(typeof(sut(mdp).initial_entity)) : Scene([entities...])
 end
 
 # Returns the list of agents in the mdp

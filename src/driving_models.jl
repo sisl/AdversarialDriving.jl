@@ -166,7 +166,7 @@ end
 
 # Define the wrapper for the adversarial pedestrian
 @with_kw mutable struct AdversarialPedestrian <: DriverModel{PedestrianControl}
-    idm::IntelligentDriverModel = IntelligentDriverModel()
+    idm::IntelligentDriverModel = IntelligentDriverModel(v_des= 2.0)
     next_action::PedestrianControl = PedestrianControl()
 end
 

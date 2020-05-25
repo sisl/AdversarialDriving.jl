@@ -38,10 +38,10 @@ bv_expanded = BlinkerVehicle_to_expanded_vec(bv)
 @test sum(bv_expanded) == sum(1 + 35 + 9 + 1  + 81) # lane, pos, vel, blinker, vel^2
 
 ## Test convert_s functions
-bv1 = BlinkerVehicleAgent(up_left(10), TIDM(Tint_TIDM_template))
-bv2 = BlinkerVehicleAgent(left_straight(2), TIDM(Tint_TIDM_template))
-bv3 = BlinkerVehicleAgent(right_turnleft(3), TIDM(Tint_TIDM_template))
-bv4 = BlinkerVehicleAgent(left_turnright(4, s=40.), TIDM(Tint_TIDM_template))
+bv1 = BlinkerVehicleAgent(up_left(id=10), TIDM(Tint_TIDM_template))
+bv2 = BlinkerVehicleAgent(left_straight(id=2), TIDM(Tint_TIDM_template))
+bv3 = BlinkerVehicleAgent(right_turnleft(id=3), TIDM(Tint_TIDM_template))
+bv4 = BlinkerVehicleAgent(left_turnright(id=4, s=40.), TIDM(Tint_TIDM_template))
 mdp = AdversarialDrivingMDP(bv1, [bv2, bv3, bv4], Tint_roadway, 0.1)
 
 vec = convert_s(AbstractArray, initialstate(mdp), mdp)

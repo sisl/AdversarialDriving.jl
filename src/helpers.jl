@@ -14,23 +14,30 @@ end
 # Functions for constructing vehicles
 
 
-ez_Tint_vehicle(id, s, v, lane) = BlinkerVehicle(roadway = Tint_roadway,
+ez_Tint_vehicle(;id::Int64, s::Float64, v::Float64, lane::Int64) = BlinkerVehicle(roadway = Tint_roadway,
                                               lane=lane, s=s, v = v,
                                               id = id, goals = Tint_goals[lane],
                                               blinker = Tint_should_blink[lane])
-up_left(id; s::Float64 = 40., v::Float64 = 20.) = ez_Tint_vehicle(id, s, v, 5)
-left_straight(id; s::Float64 = 15., v::Float64 = 19.) = ez_Tint_vehicle(id, s, v, 2)
-left_turnright(id; s::Float64 = 15., v::Float64 = 19.) = ez_Tint_vehicle(id, s, v, 1)
-right_straight(id; s::Float64 = 30., v::Float64 = 20.) = ez_Tint_vehicle(id, s, v, 3)
-right_turnleft(id; s::Float64 = 40., v::Float64 = 14.) = ez_Tint_vehicle(id, s, v, 4)
+up_left(;id::Int64, s::Float64 = 40., v::Float64 = 20.) = ez_Tint_vehicle(id = id, s = s, v = v, lane = 5)
+left_straight(;id::Int64, s::Float64 = 15., v::Float64 = 19.) = ez_Tint_vehicle(id = id, s = s, v = v, lane = 2)
+left_turnright(;id::Int64, s::Float64 = 15., v::Float64 = 19.) = ez_Tint_vehicle(id = id, s = s, v = v, lane = 1)
+right_straight(;id::Int64, s::Float64 = 30., v::Float64 = 20.) = ez_Tint_vehicle(id = id, s = s, v = v, lane = 3)
+right_turnleft(;id::Int64, s::Float64 = 40., v::Float64 = 14.) = ez_Tint_vehicle(id = id, s = s, v = v, lane = 4)
 
-ez_ped_vehicle(id, s, v) = BlinkerVehicle(roadway = ped_roadway,
+ez_ped_vehicle(;id::Int64, s::Float64, v::Float64) = BlinkerVehicle(roadway = ped_roadway,
                                               lane=1, s=s, v = v,
                                               id = id, goals = ped_goals[1],
                                               blinker = ped_should_blink[1])
-ez_pedestrian(id, s, v) = NoisyPedestrian(roadway = ped_roadway, lane = 2, s=s, v=v, id=id)
+ez_pedestrian(;id::Int64, s::Float64, v::Float64) = NoisyPedestrian(roadway = ped_roadway, lane = 2, s=s, v=v, id=id)
 
-
+function scenes_to_gif(scenes, roadway, filename; others = [], fps = 10)
+    frames = Frames(MIME("image/png"), fps=fps)
+    for i=1:length(scenes)
+        frame = render([roadway, others..., scenes[i]], canvas_width=1200, canvas_height=800)
+        push!(frames, frame)
+    end
+    write(filename, frames)
+end
 
 # Create a random IntelligentDriverModel
 function random_IDM()

@@ -5,6 +5,7 @@ module AdversarialDriving
     using Distributions
     using Parameters
     using Random
+    using Reel
 
     # TIDM model exports
     export  PEDESTRIAN_DEF, Noise, NoisyState, NoisyPedState, BlinkerState,
@@ -35,7 +36,8 @@ module AdversarialDriving
 
     #helpers
     export  decompose_scene, up_left, left_straight, left_turnright, right_straight,
-            right_turnleft, random_IDM, ez_Tint_vehicle, ez_ped_vehicle, ez_pedestrian
+            right_turnleft, random_IDM, ez_Tint_vehicle, ez_ped_vehicle, ez_pedestrian,
+            scenes_to_gif
 
     include("driving_models.jl")
     include("roadways.jl")
@@ -43,6 +45,5 @@ module AdversarialDriving
     include("states.jl")
     include("actions.jl")
     include("helpers.jl")
-
 end
 

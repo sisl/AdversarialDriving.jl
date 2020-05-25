@@ -3,8 +3,8 @@ using Test
 
 
 # Create two agents and construct their actions
-bv1 = BlinkerVehicleAgent(left_straight(1), TIDM(Tint_TIDM_template))
-bv2 = BlinkerVehicleAgent(right_straight(2), TIDM(Tint_TIDM_template))
+bv1 = BlinkerVehicleAgent(left_straight(id=1), TIDM(Tint_TIDM_template))
+bv2 = BlinkerVehicleAgent(right_straight(id=2), TIDM(Tint_TIDM_template))
 advs = [bv1, bv2]
 acts, action_id, action_prob = construct_discrete_actions(advs)
 @test acts isa Array{Array{Disturbance}}

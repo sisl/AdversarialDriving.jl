@@ -7,7 +7,7 @@ using POMDPs
 using Test
 
 ## Test construction of a BV
-bv1 = BlinkerVehicleAgent(up_left(10), TIDM(Tint_TIDM_template))
+bv1 = BlinkerVehicleAgent(up_left(id = 10), TIDM(Tint_TIDM_template))
 @test bv1.initial_entity.state isa BlinkerState
 @test bv1.model.idm == Tint_TIDM_template.idm
 @test bv1.num_obs == BLINKERVEHICLE_OBS
@@ -19,7 +19,7 @@ bv1 = BlinkerVehicleAgent(up_left(10), TIDM(Tint_TIDM_template))
 
 
 ## Test construction of a Adversarial Pedestrian
-ped1 = NoisyPedestrianAgent(ez_pedestrian(2, 0., 4.), AdversarialPedestrian())
+ped1 = NoisyPedestrianAgent(ez_pedestrian(id=2, s=0., v=4.), AdversarialPedestrian())
 @test ped1.initial_entity.state isa NoisyPedState
 @test ped1.num_obs == PEDESTRIAN_OBS
 @test length(ped1.to_vec(ped1.initial_entity)) == PEDESTRIAN_OBS
@@ -29,9 +29,9 @@ ped1 = NoisyPedestrianAgent(ez_pedestrian(2, 0., 4.), AdversarialPedestrian())
 @test id(ped1) == 2
 
 # #Test construction of a full MDP with BV in the Tintersection
-bv2 = BlinkerVehicleAgent(left_straight(2), TIDM(Tint_TIDM_template))
-bv3 = BlinkerVehicleAgent(right_turnleft(3), TIDM(Tint_TIDM_template))
-bv4 = BlinkerVehicleAgent(left_turnright(4, s=40.), TIDM(Tint_TIDM_template))
+bv2 = BlinkerVehicleAgent(left_straight(id=2), TIDM(Tint_TIDM_template))
+bv3 = BlinkerVehicleAgent(right_turnleft(id=3), TIDM(Tint_TIDM_template))
+bv4 = BlinkerVehicleAgent(left_turnright(id=4, s=40.), TIDM(Tint_TIDM_template))
 mdp = AdversarialDrivingMDP(bv1, [bv2, bv3, bv4], Tint_roadway, 0.1)
 
 @test agents(mdp) == [adversaries(mdp)..., sut(mdp)]
@@ -62,7 +62,7 @@ acts, action_id, action_prob = construct_discrete_actions(collect(adversaries(md
 @test mdp.γ == 1.
 
 ## Test the update_adversary! function
-bv5 = BlinkerVehicleAgent(left_straight(5), TIDM(Tint_TIDM_template))
+bv5 = BlinkerVehicleAgent(left_straight(id=5), TIDM(Tint_TIDM_template))
 s = initialstate(mdp)
 sbefore = deepcopy(s)
 
@@ -77,8 +77,8 @@ update_adversary!(agents(mdp)[1], noise_action, s).state.noise.pos
 
 ## Test reward, isterminal
 empty_scene = Scene(Entity{BlinkerState, VehicleDef, Int64})
-coll_scene = Scene([left_straight(1, s=50.), right_turnleft(2, s=50.), up_left(10)])
-ego_coll_scene = Scene([left_straight(1, s=50.), right_turnleft(2), up_left(10, s=50.)])
+coll_scene = Scene([left_straight(id=1, s=50.), right_turnleft(id=2, s=50.), up_left(id=10)])
+ego_coll_scene = Scene([left_straight(id=1, s=50.), right_turnleft(id=2), up_left(id=10, s=50.)])
 
 @test !isterminal(mdp, s)
 @test isterminal(mdp, empty_scene)
