@@ -22,7 +22,7 @@ function POMDPs.convert_s(::Type{AbstractArray}, state::Scene, mdp::AdversarialD
         mdp.last_observation[index : index + a.num_obs - 1] .= a.to_vec(entity)
         index += a.num_obs
     end
-    mdp.last_observation
+    copy(mdp.last_observation)
 end
 
 POMDPs.convert_s(::Type{Array{Float64, 1}}, state::Scene, mdp::AdversarialDrivingMDP) = convert_s(AbstractArray, state, mdp)
@@ -64,10 +64,10 @@ function vec_to_BlinkerVehicle(arr::AbstractArray, id, roadway::Roadway, model)
     s = arr[1] # Distance along the lane
     v = arr[2] # velocity
     g = Int(arr[3]) # Goal (lane id)
-    b = arr[4] # blinker
+    b = Bool(arr[4]) # blinker
 
     vs = VehicleState(Frenet(roadway, g, s), roadway, v)
-    bs = BlinkerState(vs, Bool(b), model.goals[g], Noise())
+    bs = BlinkerState(vs, b, model.goals[g], Noise())
     bv = Entity(bs, VehicleDef(), id)
 end
 
