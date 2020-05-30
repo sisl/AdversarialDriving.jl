@@ -57,6 +57,7 @@ acts, action_id, action_prob = construct_discrete_actions(collect(adversaries(md
 @test mdp.action_to_index == action_id
 @test actionindex(mdp, acts[4]) == 4
 @test mdp.action_probabilities == action_prob
+action_probability(mdp, initialstate(mdp), acts[6])
 @test action_probability(mdp, initialstate(mdp), acts[6]) == action_prob[6]
 @test mdp.γ == discount(mdp)
 @test mdp.γ == 1.

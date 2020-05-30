@@ -25,6 +25,8 @@ function POMDPs.convert_s(::Type{AbstractArray}, state::Scene, mdp::AdversarialD
     mdp.last_observation
 end
 
+POMDPs.convert_s(::Type{Array{Float64, 1}}, state::Scene, mdp::AdversarialDrivingMDP) = convert_s(AbstractArray, state, mdp)
+
 
 ## Adversarial Pedestrians vehicles
 const PEDESTRIAN_OBS = 4

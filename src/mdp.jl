@@ -73,7 +73,7 @@ POMDPs.actions(mdp::AdversarialDrivingMDP) = mdp.actions
 POMDPs.actions(mdp::AdversarialDrivingMDP, state::Tuple{Scene, Float64}) = actions(mdp)
 POMDPs.actionindex(mdp::AdversarialDrivingMDP, a::Array{Disturbance}) = mdp.action_to_index[a]
 action_probability(mdp::AdversarialDrivingMDP, a::Array{Disturbance}) = mdp.action_probabilities[mdp.action_to_index[a]]
-action_probability(mdp::AdversarialDrivingMDP, s::Scene, a::Array{Disturbance}) = action_probabiliy(mdp, a)
+action_probability(mdp::AdversarialDrivingMDP, s::Scene, a::Array{Disturbance}) = action_probability(mdp, a)
 
 
 ## Helper functions

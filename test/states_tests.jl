@@ -51,4 +51,7 @@ s_back = convert_s(Scene, vec, mdp)
 @test s_back[3] == initialstate(mdp)[3]
 @test s_back[4] == initialstate(mdp)[4]
 
+vec2 = convert_s(Array{Float64, 1}, initialstate(mdp), mdp)
+@test vec == vec2
+
 
