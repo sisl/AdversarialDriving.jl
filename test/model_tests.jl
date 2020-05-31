@@ -234,11 +234,14 @@ scenes = AutomotiveSimulator.simulate(scene, Tint_roadway, models, nticks, times
 @test length(scenes) == nticks + 1
 
 # test end_of_road
-@test end_of_road(scenes[end][1], Tint_roadway)
-@test end_of_road(scenes[end][2], Tint_roadway)
-@test end_of_road(scenes[end][3], Tint_roadway)
-@test end_of_road(scenes[end][4], Tint_roadway)
-@test end_of_road(scenes[end][5], Tint_roadway)
+@test end_of_road(scenes[end][1], Tint_roadway, Inf)
+@test end_of_road(scenes[end][2], Tint_roadway, Inf)
+@test end_of_road(scenes[end][3], Tint_roadway, Inf)
+@test end_of_road(scenes[end][4], Tint_roadway, Inf)
+@test end_of_road(scenes[end][5], Tint_roadway, Inf)
+
+egovehicle = BlinkerVehicle(roadway = Tint_roadway, lane = 5, s = 35., v = 9., id = 5, goals = Tint_goals[5], blinker = true)
+@test end_of_road(egovehicle, Tint_roadway, 35)
 
 # Note: use the following code to make a gif
 # The cars are not removed at the end of the roadway, the mpd takes care of that

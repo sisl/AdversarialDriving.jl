@@ -56,10 +56,11 @@ mutable struct AdversarialDrivingMDP <: MDP{Scene, Array{Disturbance}}
     action_probabilities::Array{Float64} # probability of taking each action
     γ::Float64 # discount
     ast_reward::Bool # A function that gives action log prob.
+    end_of_road::Float64 # specify an early end of the road
 end
 
 # Constructor
-function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Roadway, dt::Float64; discrete = true, other_agents::Array{Agent} = Agent[], γ = 1, ast_reward = false)
+function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Roadway, dt::Float64; discrete = true, other_agents::Array{Agent} = Agent[], γ = 1, ast_reward = false, end_of_road = Inf)
     agents = [adversaries..., sut, other_agents...]
     d = Dict(id(agents[i]) => i for i=1:length(agents))
     Na = length(adversaries)
@@ -67,7 +68,7 @@ function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Road
     o = Float64[] # Last observation
 
     as, a2i, aprob = discrete ? construct_discrete_actions(adversaries) : (Array{Disturbance}[], Dict{Array{Disturbance}, Int64}(), Float64[])
-    AdversarialDrivingMDP(agents, d, Na, road, scene, dt, o, as, a2i, aprob, γ, ast_reward)
+    AdversarialDrivingMDP(agents, d, Na, road, scene, dt, o, as, a2i, aprob, γ, ast_reward, end_of_road)
 end
 
 # Returns the intial state of the mdp simulator
@@ -96,7 +97,7 @@ end
 POMDPs.discount(mdp::AdversarialDrivingMDP) = mdp.γ
 
 # The simulation is terminal if there is collision with the ego vehicle or if the maximum simulation time has been reached
-POMDPs.isterminal(mdp::AdversarialDrivingMDP, s::Scene) = length(s) == 0 || any_collides(s) || !(sutid(mdp) in s)
+POMDPs.isterminal(mdp::AdversarialDrivingMDP, s::Scene) = !(sutid(mdp) in s)|| any_collides(s)
 
 # Define the set of actions, action index and probability
 POMDPs.actions(mdp::AdversarialDrivingMDP) = mdp.actions
@@ -123,7 +124,7 @@ function step_scene(mdp::AdversarialDrivingMDP, s::Scene, actions::Array{Disturb
         observe!(m, s, mdp.roadway, veh.id)
         a = rand(rng, m)
         bv = Entity(propagate(veh, a, mdp.roadway, mdp.dt), veh.def, veh.id)
-        !end_of_road(bv, mdp.roadway) && push!(entities, bv)
+        !end_of_road(bv, mdp.roadway, mdp.end_of_road) && push!(entities, bv)
     end
     isempty(entities) ? Scene(typeof(sut(mdp).initial_entity)) : Scene([entities...])
 end

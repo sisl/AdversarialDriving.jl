@@ -387,13 +387,12 @@ function any_collides(scene)
 end
 
 # Check if a given car has reached the end of the roadway
-function end_of_road(veh, roadway)
+function end_of_road(veh, roadway, set_end)
     s = posf(veh).s
-    return s >= 70.
 
-    # lane = get_lane(roadway, veh)
-    # s_end = lane.curve[end].s
-    # return s >= s_end
+    lane = get_lane(roadway, veh)
+    s_end = lane.curve[end].s
+    return s >= min(s_end, set_end)
 end
 
 # Removes cars that have reached the end of the lane
