@@ -389,9 +389,11 @@ end
 # Check if a given car has reached the end of the roadway
 function end_of_road(veh, roadway)
     s = posf(veh).s
-    lane = get_lane(roadway, veh)
-    s_end = lane.curve[end].s
-    return s >= s_end
+    return s >= 70.
+
+    # lane = get_lane(roadway, veh)
+    # s_end = lane.curve[end].s
+    # return s >= s_end
 end
 
 # Removes cars that have reached the end of the lane

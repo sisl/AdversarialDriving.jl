@@ -75,6 +75,7 @@ POMDPs.initialstate(mdp::AdversarialDrivingMDP, rng::AbstractRNG = Random.GLOBAL
 
 # The generative interface to the POMDP
 function POMDPs.gen(mdp::AdversarialDrivingMDP, s::Scene, a::Array{Disturbance}, rng::Random.AbstractRNG = Random.GLOBAL_RNG)
+    mdp.last_observation = convert_s(AbstractArray, s, mdp)
     sp = step_scene(mdp, s, a, rng)
     r = reward(mdp, s, a, sp)
     (sp=sp, r=r)
@@ -95,7 +96,7 @@ end
 POMDPs.discount(mdp::AdversarialDrivingMDP) = mdp.γ
 
 # The simulation is terminal if there is collision with the ego vehicle or if the maximum simulation time has been reached
-POMDPs.isterminal(mdp::AdversarialDrivingMDP, s::Scene) = length(s) == 0 || any_collides(s)
+POMDPs.isterminal(mdp::AdversarialDrivingMDP, s::Scene) = length(s) == 0 || any_collides(s) || !(sutid(mdp) in s)
 
 # Define the set of actions, action index and probability
 POMDPs.actions(mdp::AdversarialDrivingMDP) = mdp.actions

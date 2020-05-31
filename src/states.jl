@@ -18,6 +18,7 @@ function POMDPs.convert_s(::Type{AbstractArray}, state::Scene, mdp::AdversarialD
     isempty(mdp.last_observation) && (mdp.last_observation = zeros(sum([a.entity_dim for a in agents(mdp)])))
     index = 1
     for a in agents(mdp)
+        !(id(a) in state) && continue
         entity = get_by_id(state, id(a))
         mdp.last_observation[index : index + a.entity_dim - 1] .= a.entity_to_vec(entity)
         index += a.entity_dim
