@@ -87,7 +87,6 @@ ego_coll_scene = Scene([left_straight(id=1, s=50.), right_turnleft(id=2), up_lef
 @test isterminal(mdp, empty_scene)
 @test isterminal(mdp, coll_scene)
 @test isterminal(mdp, ego_coll_scene)
-
 @test reward(mdp, s, actions(mdp)[1], coll_scene) == 0.
 @test reward(mdp, s, actions(mdp)[1], ego_coll_scene) == 1.0
 
@@ -110,4 +109,19 @@ hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> ac
 #     render([Tint_roadway, crosswalk, scenes[i]], canvas_width=1200, canvas_height=800)
 # end
 # write("ped_roadway_animated.gif", animation)
+
+
+sut_agent = BlinkerVehicleAgent(up_left(id=1, s=25., v=15.), TIDM(Tint_TIDM_template, noisy_observations = true))
+adv1 = BlinkerVehicleAgent(left_straight(id=2, s=20., v=15.0), TIDM(Tint_TIDM_template))
+mdp = AdversarialDrivingMDP(sut_agent, [adv1], Tint_roadway, 0.15)
+blinker_action = mdp.actions[7]
+hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> s == initialstate(mdp) ? blinker_action : actions(mdp)[1]))
+@test undiscounted_reward(hist) == 1
+
+mdp = AdversarialDrivingMDP(sut_agent, [adv1], Tint_roadway, 0.15, ast_reward = true)
+hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> s == initialstate(mdp) ? blinker_action : actions(mdp)[1]))
+@test undiscounted_reward(hist) > -1e6
+
+hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> actions(mdp)[1]))
+@test undiscounted_reward(hist) < -1e6
 
