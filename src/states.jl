@@ -6,8 +6,8 @@ function POMDPs.convert_s(::Type{Scene}, s::AbstractArray{Float64}, mdp::Adversa
     # Loop through all the agents of the mdp
     index = 1
     for agent in agents(mdp)
-        ent = agent.to_entity(s[index : index + agent.num_obs - 1], id(agent), mdp.roadway, agent.model)
-        index += agent.num_obs
+        ent = agent.vec_to_entity(s[index : index + agent.entity_dim - 1], id(agent), mdp.roadway, agent.model)
+        index += agent.entity_dim
         !end_of_road(ent, mdp.roadway) && push!(entities, ent)
     end
     isempty(entities) ? Scene(typeof(sut(mdp).initial_entity)) : Scene([entities...])
@@ -15,12 +15,12 @@ end
 
 # Convert from Scene to a vector
 function POMDPs.convert_s(::Type{AbstractArray}, state::Scene, mdp::AdversarialDrivingMDP)
-    isempty(mdp.last_observation) && (mdp.last_observation = zeros(sum([a.num_obs for a in agents(mdp)])))
+    isempty(mdp.last_observation) && (mdp.last_observation = zeros(sum([a.entity_dim for a in agents(mdp)])))
     index = 1
     for a in agents(mdp)
         entity = get_by_id(state, id(a))
-        mdp.last_observation[index : index + a.num_obs - 1] .= a.to_vec(entity)
-        index += a.num_obs
+        mdp.last_observation[index : index + a.entity_dim - 1] .= a.entity_to_vec(entity)
+        index += a.entity_dim
     end
     copy(mdp.last_observation)
 end
@@ -29,7 +29,7 @@ POMDPs.convert_s(::Type{Array{Float64, 1}}, state::Scene, mdp::AdversarialDrivin
 
 
 ## Adversarial Pedestrians vehicles
-const PEDESTRIAN_OBS = 4
+const PEDESTRIAN_ENTITY_DIM = 4
 
 # Converts state of a pedestrian to a vector
 function NoisyPedestrian_to_vec(ped::Entity{NoisyPedState, VehicleDef, Int64})
@@ -38,7 +38,7 @@ end
 
 function vec_to_NoisyPedestrian_fn(crosswalk_id::Int)
     function vec_to_NoisyPedestrian(arr::AbstractArray, id, roadway::Roadway, model)
-        @assert length(arr) == PEDESTRIAN_OBS
+        @assert length(arr) == PEDESTRIAN_ENTITY_DIM
 
         pos = VecSE2(arr[1], arr[2], arr[3]) # Distance along the lane
         v = arr[4]
@@ -50,8 +50,8 @@ end
 
 
 ## Blinker vehicles
-const BLINKERVEHICLE_OBS = 4
-const BLINKERVEHICLE_EXPANDED_OBS = 30
+const BLINKERVEHICLE_ENTITY_DIM = 4
+const BLINKERVEHICLE_EXPANDED_ENTITY_DIM = 30
 
 # Converts the state of a blinker vehicle to a vector
 function BlinkerVehicle_to_vec(veh::Entity{BlinkerState, VehicleDef, Int64})
@@ -60,7 +60,7 @@ end
 
 # Converts the BlinkerVehicle vector back to an agent
 function vec_to_BlinkerVehicle(arr::AbstractArray, id, roadway::Roadway, model)
-    @assert length(arr) == BLINKERVEHICLE_OBS
+    @assert length(arr) == BLINKERVEHICLE_ENTITY_DIM
     s = arr[1] # Distance along the lane
     v = arr[2] # velocity
     g = Int(arr[3]) # Goal (lane id)

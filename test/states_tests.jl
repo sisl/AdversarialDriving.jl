@@ -4,7 +4,7 @@ using Test
 using POMDPs
 
 ## Test pedestrian conversion functions
-@test PEDESTRIAN_OBS == 4
+@test PEDESTRIAN_ENTITY_DIM == 4
 vec_to_NoisyPedestrian = vec_to_NoisyPedestrian_fn(2)
 ped = NoisyPedestrian(roadway = ped_roadway, lane = 2, s = 5., v = 2., id = 1, noise = Noise(vel=10))
 pedvec = [25., -5, π/2., 2.]
@@ -20,8 +20,8 @@ ped_recovered = vec_to_NoisyPedestrian(pedvec, 1, ped_roadway, nothing)
 
 
 ## Test blinker vehicle conversion functions
-@test BLINKERVEHICLE_OBS == 4
-@test BLINKERVEHICLE_EXPANDED_OBS == 30
+@test BLINKERVEHICLE_ENTITY_DIM == 4
+@test BLINKERVEHICLE_EXPANDED_ENTITY_DIM == 30
 
 bv = BlinkerVehicle(roadway = Tint_roadway, lane = 5, s = 35., v = 9., id = 5, goals = Tint_goals[5], noise = Noise(vel=10.), blinker = true)
 bvvec = [35., 9., 5., 1.]

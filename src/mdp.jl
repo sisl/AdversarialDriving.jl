@@ -1,9 +1,12 @@
 @with_kw mutable struct Agent
     initial_entity::Entity # The initial entity
     model::DriverModel # The driver model associated with this agent
-    num_obs::Int # The number of observations for this agent
-    to_vec::Function # A Function that converts the agent to a vector of length num_obs
-    to_entity::Union{Function, Nothing} = nothing # A Function that converts a vector of length num_obs to an entity
+    entity_dim::Int # The dimension of the entity
+    disturbance_dim::Int # The disturbance dimension of this agent
+    entity_to_vec::Function # A Function that converts the agent to a vector of length o_dim
+    disturbance_to_vec::Union{Function, Nothing} = nothing # A Function that converts an agent action to a vector of length a_dim
+    vec_to_entity::Union{Function, Nothing} = nothing # A Function that converts a vector of length o_dim to an entity
+    vec_to_disturbance::Union{Function, Nothing} = nothing # A Function that converts a vector of length a_dim to an action
     actions::Array{Disturbance} = [] # List of possible actions for this agent (adversaries only)
     action_prob::Array{Float64} = [] # the associated action probabilities
 end
@@ -11,13 +14,32 @@ end
 id(a::Agent) = a.initial_entity.id
 
 # Construct a regular Blinker vehicle agent
-function BlinkerVehicleAgent(veh::Entity{BlinkerState, D, I}, model::TIDM; num_obs = BLINKERVEHICLE_OBS, to_vec = BlinkerVehicle_to_vec, to_entity = vec_to_BlinkerVehicle, actions = BV_ACTIONS, action_prob = BV_ACTION_PROB) where {D,I}
-    Agent(veh, model, num_obs, to_vec, to_entity, actions, action_prob)
+#TODO
+function BlinkerVehicleAgent(veh::Entity{BlinkerState, D, I}, model::TIDM;
+    entity_dim = BLINKERVEHICLE_ENTITY_DIM,
+    disturbance_dim=BLINKERVEHICLE_DISTURBANCE_DIM,
+    entity_to_vec = BlinkerVehicle_to_vec,
+    disturbance_to_vec = BlinkerVehicleControl_to_vec,
+    vec_to_entity = vec_to_BlinkerVehicle,
+    vec_to_disturbance = vec_to_BlinkerVehicleControl,
+    actions = BV_ACTIONS,
+    action_prob = BV_ACTION_PROB) where {D,I}
+    Agent(veh, model, entity_dim, disturbance_dim, entity_to_vec,
+          disturbance_to_vec,  vec_to_entity, vec_to_disturbance, actions,
+          action_prob)
 end
 
 # Construct a regular adversarial pedestrian agent
-function NoisyPedestrianAgent(ped::Entity{NoisyPedState, D, I}, model::AdversarialPedestrian; num_obs = PEDESTRIAN_OBS, to_vec = NoisyPedestrian_to_vec, to_entity = vec_to_NoisyPedestrian_fn(DEFAULT_CROSSWALK_LANE)) where {D, I}
-    Agent(ped, model, num_obs, to_vec, to_entity, [], [])
+# TODO
+function NoisyPedestrianAgent(ped::Entity{NoisyPedState, D, I}, model::AdversarialPedestrian;
+    entity_dim = PEDESTRIAN_ENTITY_DIM,
+    disturbance_dim = PEDESTRIAN_DISTURBANCE_DIM,
+    entity_to_vec = NoisyPedestrian_to_vec,
+    disturbance_to_vec = PedestrianControl_to_vec,
+    vec_to_entity = vec_to_NoisyPedestrian_fn(DEFAULT_CROSSWALK_LANE),
+    vec_to_disturbance = vec_to_PedestrianControl) where {D, I}
+    Agent(ped, model, entity_dim, disturbance_dim, entity_to_vec,
+          disturbance_to_vec,  vec_to_entity, vec_to_disturbance, [],[])
 end
 
 # Definition of the adversarial driving mdp

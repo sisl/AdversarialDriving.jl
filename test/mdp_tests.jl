@@ -10,9 +10,10 @@ using Test
 bv1 = BlinkerVehicleAgent(up_left(id = 10), TIDM(Tint_TIDM_template))
 @test bv1.initial_entity.state isa BlinkerState
 @test bv1.model.idm == Tint_TIDM_template.idm
-@test bv1.num_obs == BLINKERVEHICLE_OBS
-@test length(bv1.to_vec(bv1.initial_entity)) == BLINKERVEHICLE_OBS
-@test bv1.to_vec(bv1.initial_entity)  == bv1.to_vec(bv1.to_entity(bv1.to_vec(bv1.initial_entity), id(bv1), Tint_roadway, bv1.model))
+@test bv1.entity_dim == BLINKERVEHICLE_ENTITY_DIM
+@test bv1.disturbance_dim == BLINKERVEHICLE_DISTURBANCE_DIM
+@test length(bv1.entity_to_vec(bv1.initial_entity)) == BLINKERVEHICLE_ENTITY_DIM
+@test bv1.entity_to_vec(bv1.initial_entity)  == bv1.entity_to_vec(bv1.vec_to_entity(bv1.entity_to_vec(bv1.initial_entity), id(bv1), Tint_roadway, bv1.model))
 @test bv1.actions == BV_ACTIONS
 @test bv1.action_prob == BV_ACTION_PROB
 @test id(bv1) == 10
@@ -21,9 +22,10 @@ bv1 = BlinkerVehicleAgent(up_left(id = 10), TIDM(Tint_TIDM_template))
 ## Test construction of a Adversarial Pedestrian
 ped1 = NoisyPedestrianAgent(ez_pedestrian(id=2, s=0., v=4.), AdversarialPedestrian())
 @test ped1.initial_entity.state isa NoisyPedState
-@test ped1.num_obs == PEDESTRIAN_OBS
-@test length(ped1.to_vec(ped1.initial_entity)) == PEDESTRIAN_OBS
-@test ped1.to_vec(ped1.initial_entity)  == ped1.to_vec(ped1.to_entity(ped1.to_vec(ped1.initial_entity), id(ped1), ped_roadway, ped1.model))
+@test ped1.entity_dim == PEDESTRIAN_ENTITY_DIM
+@test ped1.disturbance_dim == PEDESTRIAN_DISTURBANCE_DIM
+@test length(ped1.entity_to_vec(ped1.initial_entity)) == PEDESTRIAN_ENTITY_DIM
+@test ped1.entity_to_vec(ped1.initial_entity)  == ped1.entity_to_vec(ped1.vec_to_entity(ped1.entity_to_vec(ped1.initial_entity), id(ped1), ped_roadway, ped1.model))
 @test ped1.actions == []
 @test ped1.action_prob == []
 @test id(ped1) == 2
