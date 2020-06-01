@@ -57,3 +57,6 @@ vec2 = convert_s(Array{Float64, 1}, initialstate(mdp), mdp)
 vec3 = convert_s(Array{Float32, 1}, initialstate(mdp), mdp)
 @test vec3[1] isa Float32
 
+vec4 = convert_s(Array{Float32}, initialstate(mdp), mdp)
+@test vec3 == vec4
+
