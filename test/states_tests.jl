@@ -54,4 +54,6 @@ s_back = convert_s(Scene, vec, mdp)
 vec2 = convert_s(Array{Float64, 1}, initialstate(mdp), mdp)
 @test vec == vec2
 
+vec3 = convert_s(Array{Float32, 1}, initialstate(mdp), mdp)
+@test vec3[1] isa Float32
 

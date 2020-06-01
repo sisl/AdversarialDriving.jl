@@ -27,6 +27,7 @@ function POMDPs.convert_s(::Type{AbstractArray}, state::Scene, mdp::AdversarialD
 end
 
 POMDPs.convert_s(::Type{Array{Float64, 1}}, state::Scene, mdp::AdversarialDrivingMDP) = convert_s(AbstractArray, state, mdp)
+POMDPs.convert_s(::Type{Array{Float32, 1}}, state::Scene, mdp::AdversarialDrivingMDP) = convert(Array{Float32,1}, convert_s(AbstractArray, state, mdp))
 
 
 ## Adversarial Pedestrians vehicles
