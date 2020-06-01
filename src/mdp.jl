@@ -56,11 +56,20 @@ mutable struct AdversarialDrivingMDP <: MDP{Scene, Array{Disturbance}}
     action_probabilities::Array{Float64} # probability of taking each action
     γ::Float64 # discount
     ast_reward::Bool # A function that gives action log prob.
+    no_collision_penalty::Float64 # penalty for not getting a collision (for ast reward)
+    scale_reward::Bool #whether or not to scale the AST reward
     end_of_road::Float64 # specify an early end of the road
 end
 
 # Constructor
-function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Roadway, dt::Float64; discrete = true, other_agents::Array{Agent} = Agent[], γ = 1, ast_reward = false, end_of_road = Inf)
+function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Roadway, dt::Float64;
+                               discrete = true,
+                               other_agents::Array{Agent} = Agent[],
+                               γ = 1,
+                               ast_reward = false,
+                               no_collision_penalty = 1e3,
+                               scale_reward = true,
+                               end_of_road = Inf,)
     agents = [adversaries..., sut, other_agents...]
     d = Dict(id(agents[i]) => i for i=1:length(agents))
     Na = length(adversaries)
@@ -68,7 +77,8 @@ function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Road
     o = Float64[] # Last observation
 
     as, a2i, aprob = discrete ? construct_discrete_actions(adversaries) : (Array{Disturbance}[], Dict{Array{Disturbance}, Int64}(), Float64[])
-    AdversarialDrivingMDP(agents, d, Na, road, scene, dt, o, as, a2i, aprob, γ, ast_reward, end_of_road)
+    AdversarialDrivingMDP(agents, d, Na, road, scene, dt, o, as, a2i, aprob, γ,
+                         ast_reward, no_collision_penalty, scale_reward, end_of_road)
 end
 
 # Returns the intial state of the mdp simulator
@@ -87,7 +97,9 @@ function POMDPs.reward(mdp::AdversarialDrivingMDP, s::Scene, a::Array{Disturbanc
     iscollision = length(sp) > 0 && ego_collides(sutid(mdp), sp)
     if mdp.ast_reward
         isterm = isterminal(mdp, sp)
-        return (isterm && !iscollision)*(-1e6) + log(action_probability(mdp, s, a))
+        r = (isterm && !iscollision)*(-abs(mdp.no_collision_penalty)) + log(action_probability(mdp, s, a))
+        mdp.scale_reward && (r = r / mdp.no_collision_penalty)
+        return r
     else
         return Float64(iscollision)
     end

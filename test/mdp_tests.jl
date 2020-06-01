@@ -63,6 +63,18 @@ action_probability(mdp, initialstate(mdp), acts[6])
 @test action_probability(mdp, initialstate(mdp), acts[6]) == action_prob[6]
 @test mdp.γ == discount(mdp)
 @test mdp.γ == 1.
+@test mdp.ast_reward == false
+@test mdp.no_collision_penalty == 1e3
+@test mdp.scale_reward == true
+@test mdp.end_of_road == Inf
+
+mdp_temp = AdversarialDrivingMDP(bv1, [bv2, bv3, bv4], Tint_roadway, 0.1, γ=0.9, ast_reward = true, no_collision_penalty = 1e7, scale_reward = false, end_of_road = 70.)
+@test mdp_temp.γ == .9
+@test mdp_temp.ast_reward == true
+@test mdp_temp.no_collision_penalty == 1e7
+@test mdp_temp.scale_reward == false
+@test mdp_temp.end_of_road == 70.
+
 
 ## Test the update_adversary! function
 bv5 = BlinkerVehicleAgent(left_straight(id=5), TIDM(Tint_TIDM_template))
@@ -120,8 +132,8 @@ hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> s 
 
 mdp = AdversarialDrivingMDP(sut_agent, [adv1], Tint_roadway, 0.15, ast_reward = true)
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> s == initialstate(mdp) ? blinker_action : actions(mdp)[1]))
-@test undiscounted_reward(hist) > -1e6
+@test undiscounted_reward(hist) > -1
 
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> actions(mdp)[1]))
-@test undiscounted_reward(hist) < -1e6
+@test undiscounted_reward(hist) < -1
 
