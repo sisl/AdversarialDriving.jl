@@ -31,9 +31,9 @@ bv2 = vec_to_BlinkerVehicleControl([0.1, 0.5, -0.5, 0.5, 0.7])
 
 ## Test Convert_a functions
 
-sut_agent = BlinkerVehicleAgent(ez_ped_vehicle(id=1, s=5., v=15.), TIDM(ped_TIDM_template, noisy_observations = true))
-adv_vehicle = BlinkerVehicleAgent(ez_ped_vehicle(id=2, s=15., v=15.), TIDM(ped_TIDM_template))
-adv_ped = NoisyPedestrianAgent(ez_pedestrian(id=3, s=7., v=2.0), AdversarialPedestrian())
+sut_agent = BlinkerVehicleAgent(get_ped_vehicle(id=1, s=5., v=15.), TIDM(ped_TIDM_template, noisy_observations = true))
+adv_vehicle = BlinkerVehicleAgent(get_ped_vehicle(id=2, s=15., v=15.), TIDM(ped_TIDM_template))
+adv_ped = NoisyPedestrianAgent(get_pedestrian(id=3, s=7., v=2.0), AdversarialPedestrian())
 mdp = AdversarialDrivingMDP(sut_agent, [adv_vehicle, adv_ped], ped_roadway, 0.1, discrete = false)
 
 a = [bv, pc]

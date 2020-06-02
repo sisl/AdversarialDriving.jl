@@ -10,7 +10,7 @@ function POMDPs.convert_s(::Type{Scene}, s::AbstractArray{Float64}, mdp::Adversa
         index += agent.entity_dim
         !end_of_road(ent, mdp.roadway, mdp.end_of_road) && push!(entities, ent)
     end
-    isempty(entities) ? Scene(typeof(sut(mdp).initial_entity)) : Scene([entities...])
+    isempty(entities) ? Scene(typeof(sut(mdp).get_initial_entity())) : Scene([entities...])
 end
 
 # Convert from Scene to a vector

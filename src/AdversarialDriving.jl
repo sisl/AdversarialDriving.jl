@@ -42,9 +42,26 @@ module AdversarialDriving
     include("actions.jl")
 
     #helpers
-    export  decompose_scene, up_left, left_straight, left_turnright, right_straight,
-            right_turnleft, random_IDM, ez_Tint_vehicle, ez_ped_vehicle, ez_pedestrian,
-            scenes_to_gif
+    export decompose_scene,
+           ez_Tint_vehicle,
+           get_Tint_vehicle,
+           get_rand_Tint_vehicle,
+           up_left,
+           left_straight,
+           left_turnright,
+           right_straight,
+           right_turnleft,
+           rand_up_left,
+           rand_left,
+           rand_right,
+           ez_ped_vehicle,
+           ez_pedestrian,
+           get_ped_vehicle,
+           get_rand_ped_vehicle,
+           get_pedestrian,
+           get_rand_pedestrian,
+           scenes_to_gif,
+           random_IDM
     include("helpers.jl")
 end
 

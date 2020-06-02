@@ -1,5 +1,5 @@
 @with_kw mutable struct Agent
-    initial_entity::Entity # The initial entity
+    get_initial_entity::Function # Returns an entity IC
     model::DriverModel # The driver model associated with this agent
     entity_dim::Int # The dimension of the entity
     disturbance_dim::Int # The disturbance dimension of this agent
@@ -11,11 +11,11 @@
     action_prob::Array{Float64} = [] # the associated action probabilities
 end
 
-id(a::Agent) = a.initial_entity.id
+id(a::Agent) = a.get_initial_entity().id
 
 # Construct a regular Blinker vehicle agent
 #TODO
-function BlinkerVehicleAgent(veh::Entity{BlinkerState, D, I}, model::TIDM;
+function BlinkerVehicleAgent(get_veh::Function, model::TIDM;
     entity_dim = BLINKERVEHICLE_ENTITY_DIM,
     disturbance_dim=BLINKERVEHICLE_DISTURBANCE_DIM,
     entity_to_vec = BlinkerVehicle_to_vec,
@@ -24,21 +24,21 @@ function BlinkerVehicleAgent(veh::Entity{BlinkerState, D, I}, model::TIDM;
     vec_to_disturbance = vec_to_BlinkerVehicleControl,
     actions = BV_ACTIONS,
     action_prob = BV_ACTION_PROB) where {D,I}
-    Agent(veh, model, entity_dim, disturbance_dim, entity_to_vec,
+    Agent(get_veh, model, entity_dim, disturbance_dim, entity_to_vec,
           disturbance_to_vec,  vec_to_entity, vec_to_disturbance, actions,
           action_prob)
 end
 
 # Construct a regular adversarial pedestrian agent
 # TODO
-function NoisyPedestrianAgent(ped::Entity{NoisyPedState, D, I}, model::AdversarialPedestrian;
+function NoisyPedestrianAgent(get_ped::Function, model::AdversarialPedestrian;
     entity_dim = PEDESTRIAN_ENTITY_DIM,
     disturbance_dim = PEDESTRIAN_DISTURBANCE_DIM,
     entity_to_vec = NoisyPedestrian_to_vec,
     disturbance_to_vec = PedestrianControl_to_vec,
     vec_to_entity = vec_to_NoisyPedestrian_fn(DEFAULT_CROSSWALK_LANE),
     vec_to_disturbance = vec_to_PedestrianControl) where {D, I}
-    Agent(ped, model, entity_dim, disturbance_dim, entity_to_vec,
+    Agent(get_ped, model, entity_dim, disturbance_dim, entity_to_vec,
           disturbance_to_vec,  vec_to_entity, vec_to_disturbance, [],[])
 end
 
@@ -48,7 +48,6 @@ mutable struct AdversarialDrivingMDP <: MDP{Scene, Array{Disturbance}}
     vehid2ind::Dict{Int64, Int64} # Dictionary that maps vehid to index in agent list
     num_adversaries::Int64 # The number of adversaries
     roadway::Roadway # The roadway for the simulation
-    initial_scene::Scene # Initial scene
     dt::Float64 # Simulation timestep
     last_observation::Array{Float64} # Last observation of the vehicle state
     actions::Array{Array{Disturbance}} # Set of all actions for the mdp
@@ -73,16 +72,17 @@ function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Road
     agents = [adversaries..., sut, other_agents...]
     d = Dict(id(agents[i]) => i for i=1:length(agents))
     Na = length(adversaries)
-    scene = Scene([a.initial_entity for a in agents])
     o = Float64[] # Last observation
 
     as, a2i, aprob = discrete ? construct_discrete_actions(adversaries) : (Array{Disturbance}[], Dict{Array{Disturbance}, Int64}(), Float64[])
-    AdversarialDrivingMDP(agents, d, Na, road, scene, dt, o, as, a2i, aprob, γ,
+    AdversarialDrivingMDP(agents, d, Na, road, dt, o, as, a2i, aprob, γ,
                          ast_reward, no_collision_penalty, scale_reward, end_of_road)
 end
 
 # Returns the intial state of the mdp simulator
-POMDPs.initialstate(mdp::AdversarialDrivingMDP, rng::AbstractRNG = Random.GLOBAL_RNG) = mdp.initial_scene
+function POMDPs.initialstate(mdp::AdversarialDrivingMDP, rng::AbstractRNG = Random.GLOBAL_RNG)
+     Scene([a.get_initial_entity(rng) for a in agents(mdp)])
+ end
 
 # The generative interface to the POMDP
 function POMDPs.gen(mdp::AdversarialDrivingMDP, s::Scene, a::Array{Disturbance}, rng::Random.AbstractRNG = Random.GLOBAL_RNG)
@@ -138,7 +138,7 @@ function step_scene(mdp::AdversarialDrivingMDP, s::Scene, actions::Array{Disturb
         bv = Entity(propagate(veh, a, mdp.roadway, mdp.dt), veh.def, veh.id)
         !end_of_road(bv, mdp.roadway, mdp.end_of_road) && push!(entities, bv)
     end
-    isempty(entities) ? Scene(typeof(sut(mdp).initial_entity)) : Scene([entities...])
+    isempty(entities) ? Scene(typeof(sut(mdp).get_initial_entity())) : Scene([entities...])
 end
 
 # Returns the list of agents in the mdp

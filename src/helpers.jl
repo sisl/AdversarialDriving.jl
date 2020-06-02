@@ -18,17 +18,36 @@ ez_Tint_vehicle(;id::Int64, s::Float64, v::Float64, lane::Int64) = BlinkerVehicl
                                               lane=lane, s=s, v = v,
                                               id = id, goals = Tint_goals[lane],
                                               blinker = Tint_should_blink[lane])
-up_left(;id::Int64, s::Float64 = 40., v::Float64 = 20.) = ez_Tint_vehicle(id = id, s = s, v = v, lane = 5)
-left_straight(;id::Int64, s::Float64 = 15., v::Float64 = 19.) = ez_Tint_vehicle(id = id, s = s, v = v, lane = 2)
-left_turnright(;id::Int64, s::Float64 = 15., v::Float64 = 19.) = ez_Tint_vehicle(id = id, s = s, v = v, lane = 1)
-right_straight(;id::Int64, s::Float64 = 30., v::Float64 = 20.) = ez_Tint_vehicle(id = id, s = s, v = v, lane = 3)
-right_turnleft(;id::Int64, s::Float64 = 40., v::Float64 = 14.) = ez_Tint_vehicle(id = id, s = s, v = v, lane = 4)
+
+function get_Tint_vehicle(;id::Int64, s::Float64, v::Float64, lane::Int64)
+    (rng::AbstractRNG = Random.GLOBAL_RNG) -> ez_Tint_vehicle(id=id, s=s, v=v, lane=lane)
+end
+
+function get_rand_Tint_vehicle(;id::Int64, s_dist, v_dist, lane_dist)
+    (rng::AbstractRNG = Random.GLOBAL_RNG) -> ez_Tint_vehicle(id=id, s=rand(rng, s_dist), v=rand(rng, v_dist), lane=rand(rng, lane_dist))
+end
+
+up_left(;id::Int64, s::Float64 = 40., v::Float64 = 20.) = get_Tint_vehicle(id = id, s = s, v = v, lane = 5)
+left_straight(;id::Int64, s::Float64 = 15., v::Float64 = 19.) = get_Tint_vehicle(id = id, s = s, v = v, lane = 2)
+left_turnright(;id::Int64, s::Float64 = 15., v::Float64 = 19.) = get_Tint_vehicle(id = id, s = s, v = v, lane = 1)
+right_straight(;id::Int64, s::Float64 = 30., v::Float64 = 20.) = get_Tint_vehicle(id = id, s = s, v = v, lane = 3)
+right_turnleft(;id::Int64, s::Float64 = 40., v::Float64 = 14.) = get_Tint_vehicle(id = id, s = s, v = v, lane = 4)
+
+rand_up_left(;id::Int64, s_dist::Distribution, v_dist::Distribution) = get_rand_Tint_vehicle(id=id, s_dist=s_dist, v_dist=v_dist, lane_dist = [5])
+rand_left(;id::Int64, s_dist::Distribution, v_dist::Distribution) = get_rand_Tint_vehicle(id=id, s_dist=s_dist, v_dist=v_dist, lane_dist = [1,2])
+rand_right(;id::Int64, s_dist::Distribution, v_dist::Distribution) = get_rand_Tint_vehicle(id=id, s_dist=s_dist, v_dist=v_dist, lane_dist = [3,4])
 
 ez_ped_vehicle(;id::Int64, s::Float64, v::Float64) = BlinkerVehicle(roadway = ped_roadway,
                                               lane=1, s=s, v = v,
                                               id = id, goals = ped_goals[1],
                                               blinker = ped_should_blink[1])
 ez_pedestrian(;id::Int64, s::Float64, v::Float64) = NoisyPedestrian(roadway = ped_roadway, lane = 2, s=s, v=v, id=id)
+
+get_ped_vehicle(;id::Int64, s::Float64, v::Float64) = (rng::AbstractRNG = Random.GLOBAL_RNG) -> ez_ped_vehicle(id=id, s=s, v=v)
+get_rand_ped_vehicle(;id::Int64, s_dist, v_dist) = (rng::AbstractRNG = Random.GLOBAL_RNG) -> ez_ped_vehicle(id=id, s=rand(rng, s_dist), v=rand(rng, v_dist))
+get_pedestrian(;id::Int64, s::Float64, v::Float64) = (rng::AbstractRNG = Random.GLOBAL_RNG) -> ez_pedestrian(id=id, s=s, v=v)
+get_rand_pedestrian(;id::Int64, s_dist, v_dist) = (rng::AbstractRNG = Random.GLOBAL_RNG) -> ez_pedestrian(id=id, s=rand(rng, s_dist), v=rand(rng, v_dist))
+
 
 function scenes_to_gif(scenes, roadway, filename; others = [], fps = 10)
     frames = Frames(MIME("image/png"), fps=fps)
