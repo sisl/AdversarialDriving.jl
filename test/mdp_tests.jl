@@ -155,3 +155,16 @@ for i=1:100
     @test vel(get_by_id(s1, 1)) >= 7. && vel(get_by_id(s1, 1)) <= 25.
 end
 
+## Test decompose indices
+sut_agent = BlinkerVehicleAgent(up_left(id=1, s=25., v=15.), TIDM(Tint_TIDM_template, noisy_observations = true))
+adv1 = BlinkerVehicleAgent(left_straight(id=2, s=0., v=15.0), TIDM(Tint_TIDM_template))
+adv2 = BlinkerVehicleAgent(left_turnright(id=3, s=10., v=15.0), TIDM(Tint_TIDM_template))
+adv3 = BlinkerVehicleAgent(right_straight(id=4, s=40., v=20.0), TIDM(Tint_TIDM_template))
+adv4 = BlinkerVehicleAgent(right_turnleft(id=5, s=30., v=20.0), TIDM(Tint_TIDM_template))
+
+mdp = AdversarialDrivingMDP(sut_agent, [adv1, adv2, adv3, adv4], Tint_roadway, 0.1)
+
+@test decompose_indices(mdp, ids = [2,3]) == [1,2,3,4,5,6,7,8]
+@test decompose_indices(mdp, ids = [5,1]) == [13,14,15,16,17,18,19,20]
+@test decompose_indices(mdp, ids = [1,4]) == [9,10,11,12,17,18,19,20]
+

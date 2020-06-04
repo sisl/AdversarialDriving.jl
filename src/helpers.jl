@@ -11,9 +11,17 @@ function decompose_scene(scene::Scene, egoid::Int)
     scenes
 end
 
-# Functions for constructing vehicles
+# Gets the observation indices of the desired agents (by id)
+function decompose_indices(mdp::AdversarialDrivingMDP; ids)
+    i, indices = 1, Int[]
+    for a in agents(mdp)
+        id(a) in ids && push!(indices, (i:i+a.entity_dim - 1)...)
+        i += a.entity_dim
+    end
+    indices
+end
 
-
+## T-Intersection helper functions
 ez_Tint_vehicle(;id::Int64, s::Float64, v::Float64, lane::Int64) = BlinkerVehicle(roadway = Tint_roadway,
                                               lane=lane, s=s, v = v,
                                               id = id, goals = Tint_goals[lane],
@@ -37,6 +45,8 @@ rand_up_left(;id::Int64, s_dist::Distribution, v_dist::Distribution) = get_rand_
 rand_left(;id::Int64, s_dist::Distribution, v_dist::Distribution) = get_rand_Tint_vehicle(id=id, s_dist=s_dist, v_dist=v_dist, lane_dist = [1,2])
 rand_right(;id::Int64, s_dist::Distribution, v_dist::Distribution) = get_rand_Tint_vehicle(id=id, s_dist=s_dist, v_dist=v_dist, lane_dist = [3,4])
 
+
+## Pedestrian Crosswalk scenario helpers
 ez_ped_vehicle(;id::Int64, s::Float64, v::Float64) = BlinkerVehicle(roadway = ped_roadway,
                                               lane=1, s=s, v = v,
                                               id = id, goals = ped_goals[1],
@@ -48,7 +58,7 @@ get_rand_ped_vehicle(;id::Int64, s_dist, v_dist) = (rng::AbstractRNG = Random.GL
 get_pedestrian(;id::Int64, s::Float64, v::Float64) = (rng::AbstractRNG = Random.GLOBAL_RNG) -> ez_pedestrian(id=id, s=s, v=v)
 get_rand_pedestrian(;id::Int64, s_dist, v_dist) = (rng::AbstractRNG = Random.GLOBAL_RNG) -> ez_pedestrian(id=id, s=rand(rng, s_dist), v=rand(rng, v_dist))
 
-
+## Create gif from rollout
 function scenes_to_gif(scenes, roadway, filename; others = [], fps = 10)
     frames = Frames(MIME("image/png"), fps=fps)
     for i=1:length(scenes)

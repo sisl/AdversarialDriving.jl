@@ -43,6 +43,7 @@ module AdversarialDriving
 
     #helpers
     export decompose_scene,
+           decompose_indices,
            ez_Tint_vehicle,
            get_Tint_vehicle,
            get_rand_Tint_vehicle,
