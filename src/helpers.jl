@@ -77,3 +77,24 @@ function random_IDM()
     IntelligentDriverModel(T = headway_t, v_des = v_des, s_min = s_min, a_max = a_max)
 end
 
+## action conversion function
+
+function continuous_policy(t, rng = Random.GLOBAL_RNG)
+    function get_action(s)
+        noise = Noise((rand(rng, t[:noise_s]), 0.), rand(rng, t[:noise_v]))
+        Disturbance[BlinkerVehicleControl(0., rand(rng, t[:da]), rand(rng, t[:toggle_goal]), rand(rng, t[:toggle_blinker]), noise)]
+    end
+    FunctionPolicy(get_action)
+end
+
+# Converts a Multi-variate timeseries to the actions of BlinkerVehicle
+function create_actions_1BV(d)
+    actions = Array{Disturbance}[]
+    for i=1:length(first(d)[2])
+        noise = Noise((d[:noise_s][i], 0.), d[:noise_v][i])
+        a = BlinkerVehicleControl(0., d[:da][i], d[:toggle_goal][i], d[:toggle_blinker][i], noise)
+        push!(actions, [a])
+    end
+    actions
+end
+

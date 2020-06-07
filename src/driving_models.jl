@@ -266,6 +266,11 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
     model
 end
 
+# function find_nearest_car_forward(ego, scene, roadway)
+#     for (i,veh) in enumerate(scene)
+#         if veh.id != egoid &&
+# end
+
 function compute_inlane_headway(ego, veh, roadway)
     elane = laneid(ego)
     v = Entity(set_lane(veh.state.veh_state, elane, roadway), veh.def, veh.id)

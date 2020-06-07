@@ -168,3 +168,34 @@ mdp = AdversarialDrivingMDP(sut_agent, [adv1, adv2, adv3, adv4], Tint_roadway, 0
 @test decompose_indices(mdp, ids = [5,1]) == [13,14,15,16,17,18,19,20]
 @test decompose_indices(mdp, ids = [1,4]) == [9,10,11,12,17,18,19,20]
 
+## Create actions from dictionary
+d = Dict(:da => rand(10),
+         :toggle_blinker => rand(Bernoulli(0.1), 10),
+         :toggle_goal => rand(Bernoulli(0.1), 10),
+         :noise_s => rand(10),
+         :noise_v => rand(10))
+
+as = create_actions_1BV(d)
+
+for i in 1:length(as)
+    a = as[i][1]
+    @test a.da == d[:da][i]
+    @test a.toggle_goal == d[:toggle_goal][i]
+    @test a.toggle_blinker == d[:toggle_blinker][i]
+    @test a.noise.pos[1] == d[:noise_s][i]
+    @test a.noise.vel == d[:noise_v][i]
+end
+
+
+sut_agent = BlinkerVehicleAgent(up_left(id=1, s=25., v=15.), TIDM(Tint_TIDM_template, noisy_observations = true))
+adv1 = BlinkerVehicleAgent(left_straight(id=2, s=20., v=15.0), TIDM(Tint_TIDM_template))
+mdp = AdversarialDrivingMDP(sut_agent, [adv1], Tint_roadway, 0.15)
+
+d = Dict(:da => Uniform(),
+         :toggle_blinker => Bernoulli(0.1),
+         :toggle_goal => Bernoulli(0.1),
+         :noise_s => Uniform(),
+         :noise_v => Uniform())
+
+h = POMDPSimulators.simulate(HistoryRecorder(),mdp, continous_policy(d))
+

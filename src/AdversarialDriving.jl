@@ -1,5 +1,6 @@
 module AdversarialDriving
     using POMDPs
+    using POMDPPolicies
     using AutomotiveSimulator
     using AutomotiveVisualization
     using Distributions
@@ -62,7 +63,9 @@ module AdversarialDriving
            get_pedestrian,
            get_rand_pedestrian,
            scenes_to_gif,
-           random_IDM
+           random_IDM,
+           create_actions_1BV,
+           continuous_policy
     include("helpers.jl")
 end
 
