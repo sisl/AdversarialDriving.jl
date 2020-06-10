@@ -7,6 +7,7 @@ module AdversarialDriving
     using Parameters
     using Random
     using Reel
+    using Cairo
 
     # TIDM model exports
     export  PEDESTRIAN_DEF, Noise, NoisyState, NoisyPedState, BlinkerState,

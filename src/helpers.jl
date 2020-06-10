@@ -59,13 +59,16 @@ get_pedestrian(;id::Int64, s::Float64, v::Float64) = (rng::AbstractRNG = Random.
 get_rand_pedestrian(;id::Int64, s_dist, v_dist) = (rng::AbstractRNG = Random.GLOBAL_RNG) -> ez_pedestrian(id=id, s=rand(rng, s_dist), v=rand(rng, v_dist))
 
 ## Create gif from rollout
-function scenes_to_gif(scenes, roadway, filename; others = [], fps = 10)
-    frames = Frames(MIME("image/png"), fps=fps)
+
+function scenes_to_gif(scenes, roadway, filename; others = [], fps = 10, camera = nothing, canvas = (1200, 800), repeat_last_frame = 1 )
+    push!(scenes, fill(scenes[end], repeat_last_frame)...)
     for i=1:length(scenes)
-        frame = render([roadway, others..., scenes[i]], canvas_width=1200, canvas_height=800)
-        push!(frames, frame)
+        frame = render([roadway, others..., scenes[i]], canvas_width=canvas[1], canvas_height=canvas[2], camera = camera)
+        write(string("/tmp/test_", lpad(i,2, "0"), ".png"), frame)
     end
-    write(filename, frames)
+    delay = 100 / fps
+    run(`convert -delay $delay /tmp/test_"*".png  $filename`)
+    # run(`rm /tmp/test_*.png`)
 end
 
 # Create a random IntelligentDriverModel
