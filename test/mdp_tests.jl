@@ -15,8 +15,8 @@ bv1 = BlinkerVehicleAgent(up_left(id = 10), TIDM(Tint_TIDM_template))
 @test bv1.disturbance_dim == BLINKERVEHICLE_DISTURBANCE_DIM
 @test length(bv1.entity_to_vec(bv1.get_initial_entity())) == BLINKERVEHICLE_ENTITY_DIM
 @test bv1.entity_to_vec(bv1.get_initial_entity())  == bv1.entity_to_vec(bv1.vec_to_entity(bv1.entity_to_vec(bv1.get_initial_entity()), id(bv1), Tint_roadway, bv1.model))
-@test bv1.actions == BV_ACTIONS
-@test bv1.action_prob == BV_ACTION_PROB
+@test bv1.disturbance_model.actions == get_bv_actions().actions
+@test bv1.disturbance_model.probs == get_bv_actions().probs
 @test id(bv1) == 10
 
 
@@ -27,8 +27,7 @@ ped1 = NoisyPedestrianAgent(get_pedestrian(id=2, s=0., v=4.), AdversarialPedestr
 @test ped1.disturbance_dim == PEDESTRIAN_DISTURBANCE_DIM
 @test length(ped1.entity_to_vec(ped1.get_initial_entity())) == PEDESTRIAN_ENTITY_DIM
 @test ped1.entity_to_vec(ped1.get_initial_entity())  == ped1.entity_to_vec(ped1.vec_to_entity(ped1.entity_to_vec(ped1.get_initial_entity()), id(ped1), ped_roadway, ped1.model))
-@test ped1.actions == []
-@test ped1.action_prob == []
+@test ped1.disturbance_model == []
 @test id(ped1) == 2
 
 # #Test construction of a full MDP with BV in the Tintersection
@@ -55,14 +54,12 @@ scene = initialstate(mdp)
 @test mdp.last_observation == Float64[]
 @test length(convert_s(AbstractArray, scene, mdp)) == 16
 @test mdp.last_observation == convert_s(AbstractArray, scene, mdp)
-acts, action_id, action_prob = construct_discrete_actions(collect(adversaries(mdp)))
-@test mdp.actions == acts
-@test actions(mdp) == mdp.actions
-@test mdp.action_to_index == action_id
-@test actionindex(mdp, acts[4]) == 4
-@test mdp.action_probabilities == action_prob
-action_probability(mdp, initialstate(mdp), acts[6])
-@test action_probability(mdp, initialstate(mdp), acts[6]) == action_prob[6]
+d = combine_discrete(collect(adversaries(mdp)))
+@test mdp.disturbance_model.actions == d.actions
+@test mdp.disturbance_model.probs == d.probs
+# @test actionindex(mdp, acts[4]) == 4
+acts = d.actions
+@test exp(logpdf(mdp, initialstate(mdp), acts[6])) ≈ d.probs[6]
 @test mdp.γ == discount(mdp)
 @test mdp.γ == 1.
 @test mdp.ast_reward == false
@@ -128,7 +125,7 @@ hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> ac
 sut_agent = BlinkerVehicleAgent(up_left(id=1, s=25., v=15.), TIDM(Tint_TIDM_template, noisy_observations = true))
 adv1 = BlinkerVehicleAgent(left_straight(id=2, s=20., v=15.0), TIDM(Tint_TIDM_template))
 mdp = AdversarialDrivingMDP(sut_agent, [adv1], Tint_roadway, 0.15)
-blinker_action = mdp.actions[7]
+blinker_action = mdp.disturbance_model.actions[7]
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> posf(get_by_id(initialstate(mdp),1)).s <=25 ? blinker_action : actions(mdp)[1]))
 @test undiscounted_reward(hist) == 1
 
@@ -197,5 +194,5 @@ d = Dict(:da => Uniform(),
          :noise_s => Uniform(),
          :noise_v => Uniform())
 
-h = POMDPSimulators.simulate(HistoryRecorder(),mdp, continous_policy(d))
+h = POMDPSimulators.simulate(HistoryRecorder(),mdp, continuous_policy(d))
 

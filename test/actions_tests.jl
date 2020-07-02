@@ -1,5 +1,6 @@
 using AdversarialDriving
 using Test
+using POMDPs
 
 ## Test PedestrianControl conversion functions
 @test PEDESTRIAN_DISTURBANCE_DIM == 5
@@ -9,7 +10,7 @@ vec = PedestrianControl_to_vec(pc)
 @test vec == [0.2, 0.3, 0.5, 0.6, 0.7]
 
 pc2 = vec_to_PedestrianControl([0.2, 0.3, 0.5, 0.6, 0.7])
-@test pc2.a == VecE2(0, 0)
+@test all(pc2.a .== (0, 0))
 @test pc2.da == pc.da
 @test pc2.noise == pc.noise
 
@@ -18,7 +19,7 @@ pc2 = vec_to_PedestrianControl([0.2, 0.3, 0.5, 0.6, 0.7])
 
 bv = BlinkerVehicleControl(a = 1., da=0.1, toggle_goal = true, toggle_blinker = false, noise = Noise((0.5, 0.6), 0.7))
 v = BlinkerVehicleControl_to_vec(bv)
-@test v == [0.1, 0.5, -0.5, 0.5, 0.7]
+@test v == [0.1, 1., 0., 0.5, 0.7]
 
 bv2 = vec_to_BlinkerVehicleControl([0.1, 0.5, -0.5, 0.5, 0.7])
 @test bv2.a == 0
@@ -32,15 +33,15 @@ bv2 = vec_to_BlinkerVehicleControl([0.1, 0.5, -0.5, 0.5, 0.7])
 ## Test Convert_a functions
 
 sut_agent = BlinkerVehicleAgent(get_ped_vehicle(id=1, s=5., v=15.), TIDM(ped_TIDM_template, noisy_observations = true))
-adv_vehicle = BlinkerVehicleAgent(get_ped_vehicle(id=2, s=15., v=15.), TIDM(ped_TIDM_template))
+adv_vehicle = BlinkerVehicleAgent(get_ped_vehicle(id=2, s=15., v=15.), TIDM(ped_TIDM_template), disturbance_model = [])
 adv_ped = NoisyPedestrianAgent(get_pedestrian(id=3, s=7., v=2.0), AdversarialPedestrian())
-mdp = AdversarialDrivingMDP(sut_agent, [adv_vehicle, adv_ped], ped_roadway, 0.1, discrete = false)
+mdp = AdversarialDrivingMDP(sut_agent, [adv_vehicle, adv_ped], ped_roadway, 0.1,)
 
 a = [bv, pc]
 avec = convert_a(AbstractArray, a, mdp)
 @test avec[1:5] == v
 @test avec[6:10] == vec
-a2 = convert_a(Array{Disturbance}, avec, mdp)
+a2 = convert_a(Vector{Disturbance}, avec, mdp)
 @test a2[1] == bv2
 @test a2[2] == pc2
 
@@ -48,12 +49,12 @@ a2 = convert_a(Array{Disturbance}, avec, mdp)
 bv1 = BlinkerVehicleAgent(left_straight(id=1), TIDM(Tint_TIDM_template))
 bv2 = BlinkerVehicleAgent(right_straight(id=2), TIDM(Tint_TIDM_template))
 advs = [bv1, bv2]
-acts, action_id, action_prob = construct_discrete_actions(advs)
-@test acts isa Array{Array{Disturbance}}
-@test action_id isa Dict{Array{Disturbance}, Int64}
-@test action_prob isa Array{Float64}
+dist = combine_discrete(advs)
+@test dist isa DiscreteActionModel
 
 # Test action construction, probabilities and indexing
+acts = dist.actions
+BV_ACTIONS = bv1.disturbance_model.actions
 @test length(acts) == 13
 @test acts[1] == [BV_ACTIONS[1], BV_ACTIONS[1]]
 @test acts[2] == [BV_ACTIONS[2], BV_ACTIONS[1]]
@@ -61,9 +62,8 @@ acts, action_id, action_prob = construct_discrete_actions(advs)
 @test acts[8] == [BV_ACTIONS[1], BV_ACTIONS[2]]
 @test acts[13] == [BV_ACTIONS[1], BV_ACTIONS[7]]
 
-for i=1:13
-    @test action_id[acts[i]] == i
-end
+action_prob = dist.probs
+BV_ACTION_PROB = bv1.disturbance_model.probs
 @test isapprox(BV_ACTION_PROB[1], action_prob[1])
 aprob2 = action_prob[2]
 aprob3 = action_prob[3]

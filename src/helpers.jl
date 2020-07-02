@@ -92,7 +92,7 @@ end
 
 # Converts a Multi-variate timeseries to the actions of BlinkerVehicle
 function create_actions_1BV(d)
-    actions = Array{Disturbance}[]
+    actions = Vector{Disturbance}[]
     for i=1:length(first(d)[2])
         noise = Noise((d[:noise_s][i], 0.), d[:noise_v][i])
         a = BlinkerVehicleControl(0., d[:da][i], d[:toggle_goal][i], d[:toggle_blinker][i], noise)

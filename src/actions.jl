@@ -1,7 +1,6 @@
 ## Convert_a functions for the mdp
-
 # Converts from vector to an action
-function POMDPs.convert_a(::Type{Array{Disturbance}}, avec::AbstractArray{Float64}, mdp::AdversarialDrivingMDP)
+function POMDPs.convert_a(::Type{Vector{Disturbance}}, avec::AbstractArray{Float64}, mdp::AdversarialDrivingMDP)
     a = Disturbance[]
     index = 1
     for agent in adversaries(mdp)
@@ -46,8 +45,8 @@ const BLINKERVEHICLE_DISTURBANCE_DIM = 5
 
 # Converts PedestrianControl disturbance to a vector
 function BlinkerVehicleControl_to_vec(bv::BlinkerVehicleControl)
-    g = Float64(bv.toggle_goal) - 0.5
-    b = Float64(bv.toggle_blinker) - 0.5
+    g = Float64(bv.toggle_goal)
+    b = Float64(bv.toggle_blinker)
     Float64[bv.da, g, b, bv.noise.pos[1], bv.noise.vel]
 end
 
@@ -62,44 +61,75 @@ function vec_to_BlinkerVehicleControl(arr::AbstractArray)
     BlinkerVehicleControl(0., da, toggle_goal, toggle_blinker, Noise(noise_pos, noise_v))
 end
 
+## Continuous action spaces
+get_actions(m::Vector{Sampleable}) = error("Error! `actions` called on continuous action space")
+function Distributions.logpdf(m::Vector{Sampleable}, a, mdp::AdversarialDrivingMDP)
+    avec = convert_a(AbstractArray, a, mdp)
+    sum([logpdf(m[i], avec[i]) for i=1:length(avec)])
+end
+Base.rand(rng::AbstractRNG, m::Vector{Sampleable}, mdp::AdversarialDrivingMDP) = convert_a(Vector{Disturbance}, [rand(rng, d) for d in m], mdp)
+
 
 ## Discrete BlinkerVehicle Actions
-const BV_ACTIONS = [ BlinkerVehicleControl(0, 0., false, false, Noise()),
-                        BlinkerVehicleControl(0, -3., false, false, Noise()),
-                        BlinkerVehicleControl(0, -1.5, false, false, Noise()),
-                        BlinkerVehicleControl(0, 1.5, false, false, Noise()),
-                        BlinkerVehicleControl(0, 3., false, false, Noise()),
-                        BlinkerVehicleControl(0, 0., true, false, Noise()), # toggle goal
-                        BlinkerVehicleControl(0, 0., false, true, Noise()) # toggle blinker
-                        ]
-const BV_ACTION_PROB = [1 - (4e-3 + 2e-2), 1e-3, 1e-2, 1e-2, 1e-3, 1e-3, 1e-3]
+struct DiscreteActionModel
+    actions
+    probs
+end
 
+get_actions(m::DiscreteActionModel) = m.actions
+Distributions.logpdf(m::DiscreteActionModel, a, mdp::AdversarialDrivingMDP) = log(m.probs[findfirst(m.actions .== [a])])
+Base.rand(rng::AbstractRNG, m::DiscreteActionModel, mdp::AdversarialDrivingMDP) = m.actions[rand(rng, Categorical(m.probs))]
 
-# Dynamically creates the action space based on the number of adversarial vehicles
-function construct_discrete_actions(adversaries::Array{Agent})
-    actions = Array{Disturbance}[]
-    action_to_index = Dict{Array{Disturbance}, Int64}()
+## Combine disturbance_models
+# Automatically determine the type of disturbance (continuous or discrete)
+combine_disturbance_models(adversaries::Array{Agent}) = adversaries[1].disturbance_model isa DiscreteActionModel ? combine_discrete(adversaries) : combine_continuous(adversaries)
+
+# Combines continuous disturbance models
+function combine_continuous(adversaries::Array{Agent})
+    m = Vector{Sampleable}()
+    for a in adversaries
+        push!(m, a.disturbance_model...)
+    end
+    m
+end
+
+# Combines discrete disturbance models
+function combine_discrete(adversaries::Array{Agent})
+    actions = Vector{Disturbance}[]
     action_probabilities = Float64[]
 
     # Add the baseline action where all agents do nothing
-    base_action = [a.actions[1] for a in adversaries]
-    aprob = sum([a.action_prob[1] for a in adversaries])
+    base_action = [a.disturbance_model.actions[1] for a in adversaries]
+    aprob = sum([a.disturbance_model.probs[1] for a in adversaries])
     push!(actions, base_action)
     push!(action_probabilities, aprob)
-    action_to_index[actions[end]] = length(actions)
 
     # Loops through the rest of the actions
     for adv_i=1:length(adversaries)
         adv = adversaries[adv_i]
-        for (act, prob) in zip(adv.actions[2:end], adv.action_prob[2:end])
+        for (act, prob) in zip(adv.disturbance_model.actions[2:end], adv.disturbance_model.probs[2:end])
             new_action = deepcopy(base_action)
             new_action[adv_i] = act
             push!(actions, new_action)
             push!(action_probabilities, prob)
-            action_to_index[actions[end]] = length(actions)
         end
     end
     action_probabilities ./= sum(action_probabilities)
-    actions, action_to_index, action_probabilities
+    DiscreteActionModel(actions, action_probabilities)
 end
 
+## default actions
+# Function to setup default actions for the blinker verhicle
+get_bv_actions(med_accel = 1.5, large_accel = 3.0, med_prob = 1e-2, large_prob = 1e-3) = DiscreteActionModel(
+                      [ BlinkerVehicleControl(0, 0., false, false, Noise()),
+                        BlinkerVehicleControl(0, -large_accel, false, false, Noise()),
+                        BlinkerVehicleControl(0, -med_accel, false, false, Noise()),
+                        BlinkerVehicleControl(0, med_accel, false, false, Noise()),
+                        BlinkerVehicleControl(0, large_accel, false, false, Noise()),
+                        BlinkerVehicleControl(0, 0., true, false, Noise()), # toggle goal
+                        BlinkerVehicleControl(0, 0., false, true, Noise()) # toggle blinker
+                        ],
+                        [1 - (4*large_prob + 2*med_prob), large_prob, med_prob, med_prob, large_prob, large_prob, large_prob]
+                        )
+
+# TODO Add default distributions as needed

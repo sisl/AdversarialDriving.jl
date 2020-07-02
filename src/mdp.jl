@@ -7,8 +7,7 @@
     disturbance_to_vec::Union{Function, Nothing} = nothing # A Function that converts an agent action to a vector of length a_dim
     vec_to_entity::Union{Function, Nothing} = nothing # A Function that converts a vector of length o_dim to an entity
     vec_to_disturbance::Union{Function, Nothing} = nothing # A Function that converts a vector of length a_dim to an action
-    actions::Array{Disturbance} = [] # List of possible actions for this agent (adversaries only)
-    action_prob::Array{Float64} = [] # the associated action probabilities
+    disturbance_model = nothing  # Model of the disturbances (supports logpdf, rand and actions)
 end
 
 id(a::Agent) = a.get_initial_entity().id
@@ -22,11 +21,9 @@ function BlinkerVehicleAgent(get_veh::Function, model::TIDM;
     disturbance_to_vec = BlinkerVehicleControl_to_vec,
     vec_to_entity = vec_to_BlinkerVehicle,
     vec_to_disturbance = vec_to_BlinkerVehicleControl,
-    actions = BV_ACTIONS,
-    action_prob = BV_ACTION_PROB) where {D,I}
+    disturbance_model = get_bv_actions())
     Agent(get_veh, model, entity_dim, disturbance_dim, entity_to_vec,
-          disturbance_to_vec,  vec_to_entity, vec_to_disturbance, actions,
-          action_prob)
+          disturbance_to_vec,  vec_to_entity, vec_to_disturbance, disturbance_model)
 end
 
 # Construct a regular adversarial pedestrian agent
@@ -37,22 +34,20 @@ function NoisyPedestrianAgent(get_ped::Function, model::AdversarialPedestrian;
     entity_to_vec = NoisyPedestrian_to_vec,
     disturbance_to_vec = PedestrianControl_to_vec,
     vec_to_entity = vec_to_NoisyPedestrian_fn(DEFAULT_CROSSWALK_LANE),
-    vec_to_disturbance = vec_to_PedestrianControl) where {D, I}
+    vec_to_disturbance = vec_to_PedestrianControl)
     Agent(get_ped, model, entity_dim, disturbance_dim, entity_to_vec,
-          disturbance_to_vec,  vec_to_entity, vec_to_disturbance, [],[])
+          disturbance_to_vec,  vec_to_entity, vec_to_disturbance, [])
 end
 
 # Definition of the adversarial driving mdp
-mutable struct AdversarialDrivingMDP <: MDP{Scene, Array{Disturbance}}
-    agents::Array{Agent} # All the agents ordered by veh_id
+mutable struct AdversarialDrivingMDP <: MDP{Scene, Vector{Disturbance}}
+    agents::Array{Agent} # All the agents ordered by (adversaries..., sut, others...)
     vehid2ind::Dict{Int64, Int64} # Dictionary that maps vehid to index in agent list
     num_adversaries::Int64 # The number of adversaries
     roadway::Roadway # The roadway for the simulation
     dt::Float64 # Simulation timestep
     last_observation::Array{Float64} # Last observation of the vehicle state
-    actions::Array{Array{Disturbance}} # Set of all actions for the mdp
-    action_to_index::Dict{Array{Disturbance}, Int64} # Dictionary mapping actions to index
-    action_probabilities::Array{Float64} # probability of taking each action
+    disturbance_model # Model used for disturbances. supports `logpdf` and `rand` and `actions`
     γ::Float64 # discount
     ast_reward::Bool # A function that gives action log prob.
     no_collision_penalty::Float64 # penalty for not getting a collision (for ast reward)
@@ -62,7 +57,6 @@ end
 
 # Constructor
 function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Roadway, dt::Float64;
-                               discrete = true,
                                other_agents::Array{Agent} = Agent[],
                                γ = 1,
                                ast_reward = false,
@@ -74,8 +68,8 @@ function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Road
     Na = length(adversaries)
     o = Float64[] # Last observation
 
-    as, a2i, aprob = discrete ? construct_discrete_actions(adversaries) : (Array{Disturbance}[], Dict{Array{Disturbance}, Int64}(), Float64[])
-    AdversarialDrivingMDP(agents, d, Na, road, dt, o, as, a2i, aprob, γ,
+    m = combine_disturbance_models(adversaries)
+    AdversarialDrivingMDP(agents, d, Na, road, dt, o, m, γ,
                          ast_reward, no_collision_penalty, scale_reward, end_of_road)
 end
 
@@ -85,7 +79,7 @@ function POMDPs.initialstate(mdp::AdversarialDrivingMDP, rng::AbstractRNG = Rand
  end
 
 # The generative interface to the POMDP
-function POMDPs.gen(mdp::AdversarialDrivingMDP, s::Scene, a::Array{Disturbance}, rng::Random.AbstractRNG = Random.GLOBAL_RNG)
+function POMDPs.gen(mdp::AdversarialDrivingMDP, s::Scene, a::Vector{Disturbance}, rng::Random.AbstractRNG = Random.GLOBAL_RNG)
     mdp.last_observation = convert_s(AbstractArray, s, mdp)
     sp = step_scene(mdp, s, a, rng)
     r = reward(mdp, s, a, sp)
@@ -93,11 +87,11 @@ function POMDPs.gen(mdp::AdversarialDrivingMDP, s::Scene, a::Array{Disturbance},
 end
 
 # Get the reward from the actions taken and the next state
-function POMDPs.reward(mdp::AdversarialDrivingMDP, s::Scene, a::Array{Disturbance}, sp::Scene)
+function POMDPs.reward(mdp::AdversarialDrivingMDP, s::Scene, a::Vector{Disturbance}, sp::Scene)
     iscollision = length(sp) > 0 && ego_collides(sutid(mdp), sp)
     if mdp.ast_reward
         isterm = isterminal(mdp, sp)
-        r = (isterm && !iscollision)*(-abs(mdp.no_collision_penalty)) + log(action_probability(mdp, s, a))
+        r = (isterm && !iscollision)*(-abs(mdp.no_collision_penalty)) + logpdf(mdp, s, a)
         mdp.scale_reward && (r = r / mdp.no_collision_penalty)
         return r
     else
@@ -112,17 +106,22 @@ POMDPs.discount(mdp::AdversarialDrivingMDP) = mdp.γ
 POMDPs.isterminal(mdp::AdversarialDrivingMDP, s::Scene) = !(sutid(mdp) in s)|| any_collides(s)
 
 # Define the set of actions, action index and probability
-POMDPs.actions(mdp::AdversarialDrivingMDP) = mdp.actions
-POMDPs.actions(mdp::AdversarialDrivingMDP, state::Tuple{Scene, Float64}) = actions(mdp)
-POMDPs.actionindex(mdp::AdversarialDrivingMDP, a::Array{Disturbance}) = mdp.action_to_index[a]
-action_probability(mdp::AdversarialDrivingMDP, a::Array{Disturbance}) = mdp.action_probabilities[mdp.action_to_index[a]]
-action_probability(mdp::AdversarialDrivingMDP, s::Scene, a::Array{Disturbance}) = action_probability(mdp, a)
+POMDPs.actions(mdp::AdversarialDrivingMDP) = get_actions(mdp.disturbance_model)
 
+# The default disturbance policy according to the disturbance models
+#TODO: Switch the "Function policy" to something that can get logpdf?
+default_policy(mdp::AdversarialDrivingMDP, rng::AbstractRNG = Random.GLOBAL_RNG) = FunctionPolicy((s) -> rand(rng, mdp.disturbance_model))
+
+# POMDPs.actionindex(mdp::AdversarialDrivingMDP, a::Vector{Disturbance}) = findfirst(actions(mdp) .== a)
+Distributions.logpdf(mdp::AdversarialDrivingMDP, a::Vector{Disturbance}) = logpdf(mdp.disturbance_model, a, mdp)
+Distributions.logpdf(mdp::AdversarialDrivingMDP, s::Scene, a::Vector{Disturbance}) = logpdf(mdp, a)
+Distributions.logpdf(mdp::AdversarialDrivingMDP, h::SimHistory) = sum([logpdf(mdp, s, a) for (s,a) in eachstep(h, (:s, :a))])
+Distributions.logpdf(mdp::AdversarialDrivingMDP, as::Vector) = sum([logpdf(mdp, a) for a in as])
 
 ## Helper functions
 
 # Step the scene forward by one timestep and return the next state
-function step_scene(mdp::AdversarialDrivingMDP, s::Scene, actions::Array{Disturbance}, rng::AbstractRNG = Random.GLOBAL_RNG)
+function step_scene(mdp::AdversarialDrivingMDP, s::Scene, actions::Vector{Disturbance}, rng::AbstractRNG = Random.GLOBAL_RNG)
     entities = []
 
     # Loop through the adversaries and apply the instantaneous aspects of their disturbance
