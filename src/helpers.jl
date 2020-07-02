@@ -62,13 +62,16 @@ get_rand_pedestrian(;id::Int64, s_dist, v_dist) = (rng::AbstractRNG = Random.GLO
 
 function scenes_to_gif(scenes, roadway, filename; others = [], fps = 10, camera = nothing, canvas = (1200, 800), repeat_last_frame = 1 )
     push!(scenes, fill(scenes[end], repeat_last_frame)...)
+    files = []
     for i=1:length(scenes)
         frame = render([roadway, others..., scenes[i]], canvas_width=canvas[1], canvas_height=canvas[2], camera = camera)
-        write(string("/tmp/test_", lpad(i,2, "0"), ".png"), frame)
+        file = string("/tmp/test_", lpad(i,2, "0"), ".png")
+        push!(files, file)
+        write(file, frame)
     end
     delay = 100 / fps
     run(`convert -delay $delay /tmp/test_"*".png  $filename`)
-    # run(`rm /tmp/test_*.png`)
+    run(`rm $files`)
 end
 
 # Create a random IntelligentDriverModel

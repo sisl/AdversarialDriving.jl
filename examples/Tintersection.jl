@@ -11,7 +11,7 @@ adv4 = BlinkerVehicleAgent(right_turnleft(id=5, s=30., v=20.0), TIDM(Tint_TIDM_t
 mdp = AdversarialDrivingMDP(sut_agent, [adv1, adv2, adv3, adv4], Tint_roadway, 0.1)
 
 null_action = actions(mdp)[1]
-blinker_action = mdp.actions[7]
+blinker_action = actions(mdp)[7]
 
 # Nominal Behavior
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> null_action))
