@@ -41,7 +41,7 @@ end
 
 # Definition of the adversarial driving mdp
 mutable struct AdversarialDrivingMDP <: MDP{Scene, Vector{Disturbance}}
-    agents::Array{Agent} # All the agents ordered by (adversaries..., sut, others...)
+    agents::Vector{Agent} # All the agents ordered by (adversaries..., sut, others...)
     vehid2ind::Dict{Int64, Int64} # Dictionary that maps vehid to index in agent list
     num_adversaries::Int64 # The number of adversaries
     roadway::Roadway # The roadway for the simulation
@@ -56,8 +56,8 @@ mutable struct AdversarialDrivingMDP <: MDP{Scene, Vector{Disturbance}}
 end
 
 # Constructor
-function AdversarialDrivingMDP(sut::Agent, adversaries::Array{Agent}, road::Roadway, dt::Float64;
-                               other_agents::Array{Agent} = Agent[],
+function AdversarialDrivingMDP(sut::Agent, adversaries::Vector{Agent}, road::Roadway, dt::Float64;
+                               other_agents::Vector{Agent} = Agent[],
                                γ = 1,
                                ast_reward = false,
                                no_collision_penalty = 1e3,
@@ -107,6 +107,7 @@ POMDPs.isterminal(mdp::AdversarialDrivingMDP, s::Scene) = !(sutid(mdp) in s)|| a
 
 # Define the set of actions, action index and probability
 POMDPs.actions(mdp::AdversarialDrivingMDP) = get_actions(mdp.disturbance_model)
+POMDPs.actionindex(mdp::AdversarialDrivingMDP, a::Vector{Disturbance}) = get_actionindex(mdp.disturbance_model, a)
 
 # The default disturbance policy according to the disturbance models
 #TODO: Switch the "Function policy" to something that can get logpdf?

@@ -45,6 +45,8 @@ a2 = convert_a(Vector{Disturbance}, avec, mdp)
 @test a2[1] == bv2
 @test a2[2] == pc2
 
+@test_throws ErrorException actions(mdp)
+
 # Create two agents and construct their actions
 bv1 = BlinkerVehicleAgent(left_straight(id=1), TIDM(Tint_TIDM_template))
 bv2 = BlinkerVehicleAgent(right_straight(id=2), TIDM(Tint_TIDM_template))
@@ -54,13 +56,17 @@ dist = combine_discrete(advs)
 
 # Test action construction, probabilities and indexing
 acts = dist.actions
+for (a, i) in zip(acts, 1:length(acts))
+    @test get_actionindex(dist, a) == i
+end
+
 BV_ACTIONS = bv1.disturbance_model.actions
 @test length(acts) == 13
-@test acts[1] == [BV_ACTIONS[1], BV_ACTIONS[1]]
-@test acts[2] == [BV_ACTIONS[2], BV_ACTIONS[1]]
-@test acts[7] == [BV_ACTIONS[7], BV_ACTIONS[1]]
-@test acts[8] == [BV_ACTIONS[1], BV_ACTIONS[2]]
-@test acts[13] == [BV_ACTIONS[1], BV_ACTIONS[7]]
+@test acts[1] == [BV_ACTIONS[1][1], BV_ACTIONS[1][1]]
+@test acts[2] == [BV_ACTIONS[2][1], BV_ACTIONS[1][1]]
+@test acts[7] == [BV_ACTIONS[7][1], BV_ACTIONS[1][1]]
+@test acts[8] == [BV_ACTIONS[1][1], BV_ACTIONS[2][1]]
+@test acts[13] == [BV_ACTIONS[1][1], BV_ACTIONS[7][1]]
 
 action_prob = dist.probs
 BV_ACTION_PROB = bv1.disturbance_model.probs

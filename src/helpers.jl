@@ -75,7 +75,7 @@ function scenes_to_gif(scenes, roadway, filename; others = [], fps = 10, camera 
 end
 
 # Create a random IntelligentDriverModel
-function random_IDM()
+function random_IDM(rng::AbstractRNG)
     headway_t = max(0.5, rand(rng, Normal(1.5, 0.5))) # desired time headway [s]
     v_des = max(15.0, rand(rng, Normal(20.0, 5.0))) # desired speed [m/s]
     s_min = max(1.0, rand(rng, Normal(5.0, 1.0))) # minimum acceptable gap [m]
