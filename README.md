@@ -1,4 +1,7 @@
 # Adversarial Driving
+
+[![Build Status](https://travis-ci.org/sisl/AdversarialDriving.jl.svg?branch=master)](https://travis-ci.org/sisl/AdversarialDriving.jl) [![Coverage Status](https://coveralls.io/repos/sisl/AdversarialDriving.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/sisl/AdversarialDriving.jl?branch=master)
+
 This package provides MDP models for safety validation of autonomous vehicles. It is built on top of [AutomotiveSimulator.jl](https://github.com/sisl/AutomotiveSimulator.jl).
 
 The actions of the `AdversarialDrivingMDP` represent disturbances to adversarial agents on the road. The reward is designed to encourage critical scenarios for the ego vehicle.
