@@ -7,7 +7,7 @@ julia:
 notifications:
   email: false
 
-#script:
+script:
   - julia -e 'Pkg.clone(pwd()); Pkg.build("AdversarialDriving"); Pkg.test("AdversarialDriving"; coverage=true)'
 after_success:
   # push coverage results to Coveralls
