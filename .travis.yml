@@ -8,7 +8,7 @@ notifications:
   email: false
 
 script:
-  - julia -e 'Pkg.clone(pwd()); Pkg.build("AdversarialDriving"); Pkg.test("AdversarialDriving"; coverage=true)'
+  - julia -e 'import Pkg; Pkg.clone(pwd()); Pkg.build("AdversarialDriving"); Pkg.test("AdversarialDriving"; coverage=true)'
 after_success:
   # push coverage results to Coveralls
   - julia -e 'cd(Pkg.dir("AdversarialDriving")); Pkg.add("AdversarialDriving"); using AdversarialDriving; Coveralls.submit(Coveralls.process_folder())'
