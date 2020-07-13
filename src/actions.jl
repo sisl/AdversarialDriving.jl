@@ -142,4 +142,26 @@ get_bv_actions(med_accel = 1.5, large_accel = 3.0, med_prob = 1e-2, large_prob =
                         [1 - (4*large_prob + 2*med_prob), large_prob, med_prob, med_prob, large_prob, large_prob, large_prob]
                         )
 
+function get_rand_bv_actions(rng; med_accel = 1.5, large_accel = 3.0)
+    probs = 10 .^ [rand(rng, Uniform(-4, -2)),
+                   rand(rng, Uniform(-3, -1)),
+                   rand(rng, Uniform(-3, -1)),
+                   rand(rng, Uniform(-4, -2)),
+                   rand(rng, Uniform(-4, -2)),
+                   rand(rng, Uniform(-4, -2))]
+    leftover = 1.0 - sum(probs)
+    DiscreteActionModel( Vector{Vector{Disturbance}}([ [BlinkerVehicleControl(0, 0., false, false, Noise())],
+                            [BlinkerVehicleControl(0, -large_accel, false, false, Noise())],
+                            [BlinkerVehicleControl(0, -med_accel, false, false, Noise())],
+                            [BlinkerVehicleControl(0, med_accel, false, false, Noise())],
+                            [BlinkerVehicleControl(0, large_accel, false, false, Noise())],
+                            [BlinkerVehicleControl(0, 0., true, false, Noise())], # toggle goal
+                            [BlinkerVehicleControl(0, 0., false, true, Noise())] # toggle blinker
+                           ]),
+                            [leftover, probs...]
+                            )
+end
+
+
+
 # TODO Add default distributions as needed
