@@ -1,6 +1,6 @@
 ## Convert_s functions for the mdp
 # Converts from vector to a Scene
-function POMDPs.convert_s(::Type{Scene}, s::AbstractArray{Float64}, mdp::AdversarialDrivingMDP)
+function POMDPs.convert_s(::Type{Scene}, s::AbstractArray{Float64}, mdp::MDP{Scene, A}) where A
     entities = []
 
     # Loop through all the agents of the mdp
@@ -14,7 +14,7 @@ function POMDPs.convert_s(::Type{Scene}, s::AbstractArray{Float64}, mdp::Adversa
 end
 
 # Convert from Scene to a vector
-function POMDPs.convert_s(::Type{AbstractArray}, state::Scene, mdp::AdversarialDrivingMDP)
+function POMDPs.convert_s(::Type{AbstractArray}, state::Scene, mdp::MDP{Scene, A}) where A
     isempty(mdp.last_observation) && (mdp.last_observation = zeros(sum([a.entity_dim for a in agents(mdp)])))
     index = 1
     for a in agents(mdp)
@@ -26,9 +26,9 @@ function POMDPs.convert_s(::Type{AbstractArray}, state::Scene, mdp::AdversarialD
     copy(mdp.last_observation)
 end
 
-POMDPs.convert_s(::Type{Array{Float64, 1}}, state::Scene, mdp::AdversarialDrivingMDP) = convert_s(AbstractArray, state, mdp)
-POMDPs.convert_s(::Type{Array{Float32, 1}}, state::Scene, mdp::AdversarialDrivingMDP) = convert(Array{Float32,1}, convert_s(AbstractArray, state, mdp))
-POMDPs.convert_s(::Type{Array{Float32}}, state::Scene, mdp::AdversarialDrivingMDP) = convert_s(Array{Float32,1}, state, mdp)
+POMDPs.convert_s(::Type{Array{Float64, 1}}, state::Scene, mdp::MDP{Scene, A}) where A = convert_s(AbstractArray, state, mdp)
+POMDPs.convert_s(::Type{Array{Float32, 1}}, state::Scene, mdp::MDP{Scene, A}) where A = convert(Array{Float32,1}, convert_s(AbstractArray, state, mdp))
+POMDPs.convert_s(::Type{Array{Float32}}, state::Scene, mdp::MDP{Scene, A}) where A = convert_s(Array{Float32,1}, state, mdp)
 
 
 ## Adversarial Pedestrians vehicles
