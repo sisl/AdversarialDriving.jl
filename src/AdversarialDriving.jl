@@ -15,7 +15,7 @@ module AdversarialDriving
             update_veh_state, noisy_scene, noisy_entity, blinker, goals, noise,
             BlinkerVehicle, NoisyPedestrian, Disturbance, BlinkerVehicleControl,
             PedestrianControl, AdversarialPedestrian, TIDM, lane_belief, laneid,
-            can_have_goal, any_collides, ego_collides, end_of_road
+            can_have_goal, any_collides, ego_collides, end_of_road, PolicyModel
     include("driving_models.jl")
 
     # T-Intersection roadway exports
@@ -30,7 +30,7 @@ module AdversarialDriving
     # MDP
     export Agent, BlinkerVehicleAgent, NoisyPedestrianAgent, id,
            AdversarialDrivingMDP, action_probability, step_scene,
-           agents, adversaries, model, sut, sutid, update_adversary!
+           agents, adversaries, model, sut, sutid, update_adversary!, DrivingMDP
     include("mdp.jl")
 
     # states

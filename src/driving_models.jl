@@ -191,7 +191,7 @@ end
 @with_kw mutable struct TIDM <: DriverModel{BlinkerVehicleControl}
     idm::IntelligentDriverModel = IntelligentDriverModel() # underlying idm
     noisy_observations::Bool = false # Whether or not this model gets noisy observations
-    ttc_threshold = 5 # threshold through intersection
+    ttc_threshold = 7 # threshold through intersection
     next_action::BlinkerVehicleControl = BlinkerVehicleControl() # The next action that the model will do (for controllable vehicles)
 
     # Describes the intersection and rules of the road
@@ -246,8 +246,8 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
     # If the vehicle does not have right of way then stop before the intersection
     if !has_right_of_way
         # Compare ttc
-        exit_time = [time_to_cross_distance_const_vel(veh, distance_to_point(veh, roadway, model.intersection_exit_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
-        enter_time = [time_to_cross_distance_const_vel(veh, distance_to_point(veh, roadway, model.intersection_enter_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
+        exit_time = [time_to_cross_distance_const_acc(veh,  model.idm, distance_to_point(veh, roadway, model.intersection_exit_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
+        enter_time = [time_to_cross_distance_const_acc(veh,  model.idm, distance_to_point(veh, roadway, model.intersection_enter_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
         Δs_in_lane = [compute_inlane_headway(ego, veh, roadway) for veh in vehicles_to_yield_to]
         # The intersection is clear of car i if, it exited the intersection in the past, or
         # it will enter the intersection after you have crossed it, or
@@ -424,5 +424,22 @@ function AutomotiveSimulator.get_by_id(scene::Scene, id)
     entity_index = findfirst(id, scene)
     isnothing(entity_index) && throw(BoundsError(scene, [id]))
     scene[entity_index]
+end
+
+
+## Neural Network driving model
+@with_kw mutable struct PolicyModel <: DriverModel{LaneFollowingAccel}
+    policy
+    state = nothing
+end
+
+# Sample an action from TIDM model
+function Base.rand(rng::AbstractRNG, model::PolicyModel)
+    action(model.policy, model.state)
+end
+
+# Observe function for TIDM
+function AutomotiveSimulator.observe!(model::PolicyModel, input_scene::Scene, roadway::Roadway, egoid::Int64)
+    model.state = input_scene
 end
 

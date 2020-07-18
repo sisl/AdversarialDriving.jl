@@ -69,6 +69,7 @@ function Distributions.logpdf(m::Vector{Sampleable}, a::Vector{Disturbance}, mdp
     sum([logpdf(m[i], avec[i]) for i=1:length(avec)])
 end
 Base.rand(rng::AbstractRNG, m::Vector{Sampleable}, mdp::AdversarialDrivingMDP) = convert_a(Vector{Disturbance}, [rand(rng, d) for d in m], mdp)
+Base.rand(rng::AbstractRNG, m::Vector{Sampleable}, convert_fn::Function) = convert_fn([rand(rng, d) for d in m])
 
 
 ## Discrete BlinkerVehicle Actions

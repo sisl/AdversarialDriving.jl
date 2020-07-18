@@ -6,9 +6,6 @@ os:
 julia:
   - 1.4
 
-codecov: true
-coveralls: true
-
 notifications:
   email: false
 

@@ -74,12 +74,12 @@ function AdversarialDrivingMDP(sut::Agent, adversaries::Vector{Agent}, road::Roa
 end
 
 # Returns the intial state of the mdp simulator
-function POMDPs.initialstate(mdp::AdversarialDrivingMDP, rng::AbstractRNG = Random.GLOBAL_RNG)
+function POMDPs.initialstate(mdp::MDP{Scene, A}, rng::AbstractRNG = Random.GLOBAL_RNG) where A
      Scene([a.get_initial_entity(rng) for a in agents(mdp)])
  end
 
 # The generative interface to the POMDP
-function POMDPs.gen(mdp::AdversarialDrivingMDP, s::Scene, a::Vector{Disturbance}, rng::Random.AbstractRNG = Random.GLOBAL_RNG)
+function POMDPs.gen(mdp::MDP{Scene, A}, s::Scene, a::A, rng::Random.AbstractRNG = Random.GLOBAL_RNG) where A
     mdp.last_observation = convert_s(AbstractArray, s, mdp)
     sp = step_scene(mdp, s, a, rng)
     r = reward(mdp, s, a, sp)
@@ -100,10 +100,10 @@ function POMDPs.reward(mdp::AdversarialDrivingMDP, s::Scene, a::Vector{Disturban
 end
 
 # Discount factor for the POMDP (Set to 1 because of the finite horizon)
-POMDPs.discount(mdp::AdversarialDrivingMDP) = mdp.γ
+POMDPs.discount(mdp::MDP{Scene, A}) where A = mdp.γ
 
 # The simulation is terminal if there is collision with the ego vehicle or if the maximum simulation time has been reached
-POMDPs.isterminal(mdp::AdversarialDrivingMDP, s::Scene) = !(sutid(mdp) in s)|| any_collides(s)
+POMDPs.isterminal(mdp::MDP{Scene, A}, s::Scene) where A = !(sutid(mdp) in s)|| any_collides(s)
 
 # Define the set of actions, action index and probability
 POMDPs.actions(mdp::AdversarialDrivingMDP) = get_actions(mdp.disturbance_model)
@@ -142,19 +142,19 @@ function step_scene(mdp::AdversarialDrivingMDP, s::Scene, actions::Vector{Distur
 end
 
 # Returns the list of agents in the mdp
-agents(mdp::AdversarialDrivingMDP) = mdp.agents
+agents(mdp::MDP{Scene,A}) where A = mdp.agents
 
 # Returns the list of adversaries in the mdp
-adversaries(mdp::AdversarialDrivingMDP) = view(mdp.agents, 1:mdp.num_adversaries)
+adversaries(mdp::MDP{Scene,A}) where A = view(mdp.agents, 1:mdp.num_adversaries)
 
 # Returns the model associated with the vehid
-model(mdp::AdversarialDrivingMDP, vehid::Int) = mdp.agents[mdp.vehid2ind[vehid]].model
+model(mdp::MDP{Scene,A}, vehid::Int) where A = mdp.agents[mdp.vehid2ind[vehid]].model
 
 # Returns the system under test
-sut(mdp::AdversarialDrivingMDP) = mdp.agents[mdp.num_adversaries + 1]
+sut(mdp::MDP{Scene,A}) where A  = mdp.agents[mdp.num_adversaries + 1]
 
 # Returns the sut id
-sutid(mdp::AdversarialDrivingMDP) = id(sut(mdp))
+sutid(mdp::MDP{Scene,A}) where A = id(sut(mdp))
 
 function update_adversary!(adversary::Agent, action::Disturbance, s::Scene)
     index = findfirst(id(adversary), s)
@@ -164,4 +164,72 @@ function update_adversary!(adversary::Agent, action::Disturbance, s::Scene)
     state_type = typeof(veh.state) # Find out the type of its state
     s[index] =  Entity(state_type(veh.state, noise = action.noise), veh.def, veh.id) # replace the entity in the scene
 end
+
+
+## SUT driving MDP
+mutable struct DrivingMDP <: MDP{Scene, BlinkerVehicleControl}
+    agents::Vector{Agent} # All the agents ordered by (adversaries..., sut, others...)
+    vehid2ind::Dict{Int64, Int64} # Dictionary that maps vehid to index in agent list
+    num_adversaries::Int64 # The number of adversaries
+    roadway::Roadway # The roadway for the simulation
+    dt::Float64 # Simulation timestep
+    last_observation::Array{Float64} # Last observation of the vehicle state
+    γ::Float64 # discount
+    end_of_road::Float64 # Early stopping of road
+    per_timestep_penalty::Float64
+    v_des::Float64
+end
+
+# Constructor
+function DrivingMDP(sut::Agent, adversaries::Vector{Agent}, road::Roadway, dt::Float64; γ = 1, end_of_road = Inf, per_timestep_penalty = 0, v_des = 25)
+    agents = [adversaries..., sut]
+    d = Dict(id(agents[i]) => i for i=1:length(agents))
+    DrivingMDP(agents, d, length(adversaries), road, dt, Float64[], γ, end_of_road, per_timestep_penalty, v_des)
+end
+
+# Get the reward from the actions taken and the next state
+function POMDPs.reward(mdp::DrivingMDP, s::Scene, a::BlinkerVehicleControl, sp::Scene)
+    id = sutid(mdp)
+    v = vel(get_by_id(s, id))
+
+    r = -abs(mdp.per_timestep_penalty)
+    # If the simulation ends but the SUT is not at the end of the road, big penalty
+    if ego_collides(id, sp)
+        r += -1
+    elseif isterminal(mdp, sp)
+        r += 1
+    end
+    r += -.1 * (v < 0)
+    r += -0.001 * abs(v  - mdp.v_des)
+    r
+end
+
+function step_scene(mdp::DrivingMDP, s::Scene, action::BlinkerVehicleControl, rng::AbstractRNG = Random.GLOBAL_RNG)
+    entities = []
+    sid = sutid(mdp)
+
+    # Choose random actions for the adversaries
+    for adversary in adversaries(mdp)
+        adv_action = rand(rng, adversary.disturbance_model, adversary.vec_to_disturbance)
+        update_adversary!(adversary, adv_action, s)
+    end
+
+    # Loop through the vehicles in the scene, apply action and add to next scene
+    for (i, veh) in enumerate(s)
+        if veh.id == sid # for the sut, use the prescribed action
+            a = action
+        else # For the other vehicles use their  model
+            m = model(mdp, veh.id)
+            observe!(m, s, mdp.roadway, veh.id)
+            a = rand(rng, m)
+        end
+        bv = Entity(propagate(veh, a, mdp.roadway, mdp.dt), veh.def, veh.id)
+        !end_of_road(bv, mdp.roadway, mdp.end_of_road) && push!(entities, bv)
+    end
+    isempty(entities) ? Scene(typeof(sut(mdp).get_initial_entity())) : Scene([entities...])
+end
+
+# Define the set of actions, action index and probability
+POMDPs.actions(mdp::DrivingMDP) = [BlinkerVehicleControl(a = -4.), BlinkerVehicleControl(a= -2.), BlinkerVehicleControl(a = 0.), BlinkerVehicleControl(a = 1.5), BlinkerVehicleControl(a = 3.)]
+POMDPs.actionindex(mdp::DrivingMDP, a::BlinkerVehicleControl) = findfirst([a] .== actions(mdp))
 
