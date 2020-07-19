@@ -15,7 +15,8 @@ module AdversarialDriving
             update_veh_state, noisy_scene, noisy_entity, blinker, goals, noise,
             BlinkerVehicle, NoisyPedestrian, Disturbance, BlinkerVehicleControl,
             PedestrianControl, AdversarialPedestrian, TIDM, lane_belief, laneid,
-            can_have_goal, any_collides, ego_collides, end_of_road, PolicyModel
+            can_have_goal, any_collides, ego_collides, end_of_road, PolicyModel,
+            Blindspot, in_blindspot, RenderableBlindspot
     include("driving_models.jl")
 
     # T-Intersection roadway exports

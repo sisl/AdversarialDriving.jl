@@ -3,6 +3,7 @@ using AutomotiveSimulator
 using AutomotiveVisualization
 using Random
 using Test
+using Distributions
 
 # Check out roadways
 # a = render([Tint_roadway])
@@ -318,4 +319,21 @@ scenes = AutomotiveSimulator.simulate(scene, ped_roadway, models, nticks, timest
 #     render([ped_roadway, crosswalk, scenes[i]], canvas_width=1200, canvas_height=800)
 # end
 # write("ped_roadway_animated.gif", animation)
+
+## Test of the blindspot
+@test !in_blindspot(VecSE2(5, 0, 0.), Blindspot(π/12., π/6), VecSE2(25, -3, π/2))
+@test in_blindspot(VecSE2(5, 0, -π/6), Blindspot(π/12., π/6), VecSE2(25, -3, π/2))
+@test !in_blindspot(VecSE2(5, 0, π/6), Blindspot(π/12., π/6), VecSE2(25, -3, π/2))
+@test in_blindspot(VecSE2(5, 0, 0.), Blindspot(π/12., π/3), VecSE2(25, -3, π/2))
+
+
+## Construct a disturbance model for the adversaries
+disturbances = Sampleable[Normal(0,1), Bernoulli(0.5), Bernoulli(0.5), Bernoulli(0.), Bernoulli(0.)]
+sut_agent = BlinkerVehicleAgent(rand_up_left(id=1, s_dist=Uniform(15.,25.), v_dist=Uniform(10., 29)), TIDM(Tint_TIDM_template))
+right_adv = BlinkerVehicleAgent(rand_right(id=3, s_dist=Uniform(15.,35.), v_dist=Uniform(15., 29.)), TIDM(Tint_TIDM_template), disturbance_model = disturbances)
+mdp = DrivingMDP(sut_agent, [right_adv], Tint_roadway, 0.2, γ = 0.95)
+
+@test length(agents(mdp)) == 2
+@test mdp.per_timestep_penalty == 0
+@test mdp.v_des == 25
 

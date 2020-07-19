@@ -184,6 +184,43 @@ function AutomotiveSimulator.observe!(model::AdversarialPedestrian, scene::Scene
     model
 end
 
+## Definition of Blindspot
+struct Blindspot
+    θ::Float64 # Offset of the blindspot from vehicle direction
+    ϕ::Float64 # Width of the blindspot
+end
+
+function in_blindspot(egopos::VecSE2{Float64}, blindspot::Blindspot, otherpos::VecSE2{Float64})
+    Δy = otherpos.y - egopos.y
+    Δx = otherpos.x - egopos.x
+    ψ = atan(Δy, Δx)
+    θ = blindspot.θ + egopos.θ
+    (ψ > θ - blindspot.ϕ / 2.) && (ψ < θ  + blindspot.ϕ / 2.)
+end
+
+struct RenderableBlindspot
+    pos::VecSE2
+    blindspot::Blindspot
+    length::Float64
+    color::Colorant
+end
+
+function AutomotiveVisualization.add_renderable!(rendermodel::RenderModel, rb::RenderableBlindspot)
+    θ = rb.blindspot.θ + rb.pos.θ
+    low = θ - rb.blindspot.ϕ / 2.
+    high = θ + rb.blindspot.ϕ / 2.
+    pt1 = VecE2{Float64}(rb.length*cos(low), rb.length*sin(low))
+    pt2 = VecE2{Float64}(rb.length*cos(high), rb.length*sin(high))
+    p = VecE2(rb.pos)
+    pts = [p, p+pt1, p+pt2, p]
+
+    add_instruction!(
+        rendermodel, AutomotiveVisualization.render_closed_line,
+        (pts,  rb.color, 0.1, rb.color),
+        coordinate_system=:scene
+    )
+    return rendermodel
+end
 
 ## Definition of the T-Intersection DriverModel with observe! and rand()
 
@@ -200,6 +237,8 @@ end
     intersection_exit_loc::Dict{Int64, VecSE2} = Dict()  # Exit location of intersection
     goals::Dict{Int64, Array{Int64}} = Dict() # Possible goals of each lane
     should_blink::Dict{Int64, Bool} = Dict()  # Wether or not the blinker should be on
+
+    blindspot::Union{Blindspot, Nothing} = nothing # Blindspot of the vehicle
 end
 
 # Sample an action from TIDM model
@@ -231,6 +270,11 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
     lanes_to_yield_to = model.yields_way[li]
     vehicles_to_yield_to = []
     for (i,veh) in enumerate(scene)
+        # Check if the other entity is in the blind spot.
+        if !isnothing(model.blindspot) && in_blindspot(posg(ego), model.blindspot, posg(veh))
+            println("here!")
+            continue;
+        end
         if veh.id != egoid && lane_belief(veh, model, roadway) in lanes_to_yield_to
             has_right_of_way = false
             push!(vehicles_to_yield_to, veh)
@@ -248,7 +292,7 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
         # Compare ttc
         exit_time = [time_to_cross_distance_const_acc(veh,  model.idm, distance_to_point(veh, roadway, model.intersection_exit_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
         enter_time = [time_to_cross_distance_const_acc(veh,  model.idm, distance_to_point(veh, roadway, model.intersection_enter_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
-        Δs_in_lane = [compute_inlane_headway(ego, veh, roadway) for veh in vehicles_to_yield_to]
+        Δs_in_lane = [compute_inlane_headway(ego, veh, roadway, model.blindspot) for veh in vehicles_to_yield_to]
         # The intersection is clear of car i if, it exited the intersection in the past, or
         # it will enter the intersection after you have crossed it, or
         # it will have exited a while before you crossed
@@ -271,7 +315,7 @@ end
 #         if veh.id != egoid &&
 # end
 
-function compute_inlane_headway(ego, veh, roadway)
+function compute_inlane_headway(ego, veh, roadway, blindspot)
     elane = laneid(ego)
     v = Entity(set_lane(veh.state.veh_state, elane, roadway), veh.def, veh.id)
     f = posf(v)
