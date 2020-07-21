@@ -166,3 +166,19 @@ end
 
 
 # TODO Add default distributions as needed
+
+get_ped_actions(accel = 1., noise_pos = 1., p = 1e-2) = DiscreteActionModel(
+                      Vector{Vector{Disturbance}}([
+                        [PedestrianControl()],
+                        [PedestrianControl(da = VecE2(accel, 0.))],
+                        [PedestrianControl(da = VecE2(-accel, 0.))],
+                        [PedestrianControl(da = VecE2(0., accel))],
+                        [PedestrianControl(da = VecE2(0., -accel))],
+                        # [PedestrianControl(noise = Noise(pos = VecE2(-noise_pos, 0.)))],
+                        # [PedestrianControl(noise = Noise(pos = VecE2(noise_pos, 0.)))],
+                        # [PedestrianControl(noise = Noise(pos = VecE2(0., noise_pos)))],
+                        # [PedestrianControl(noise = Noise(pos = VecE2(0., -noise_pos)))],
+                       ]),
+                        [1 - (4*p), p, p, p, p]#, p, p, p, p]
+                        )
+

@@ -130,6 +130,7 @@ function AutomotiveSimulator.propagate(ped::Entity{NoisyPedState, D, I}, action:
     vs_entity = Entity(ped.state.veh_state, ped.def, ped.id)
     a_lat_lon = reverse(action.a + action.da)
     vs = propagate(vs_entity, LatLonAccel(a_lat_lon...), roadway, Δt)
+    vs = VehicleState(vs.posG, vs.posF, clamp(vs.v, -3, 3))
     nps = NoisyPedState(set_lane(vs, laneid(ped), roadway), action.noise)
     @assert starting_lane == laneid(nps)
     nps
@@ -166,14 +167,19 @@ end
 
 # Define the wrapper for the adversarial pedestrian
 @with_kw mutable struct AdversarialPedestrian <: DriverModel{PedestrianControl}
-    idm::IntelligentDriverModel = IntelligentDriverModel(v_des= 2.0)
+    idm::IntelligentDriverModel = IntelligentDriverModel(v_des= 1.0)
     next_action::PedestrianControl = PedestrianControl()
+    ignore_idm = false
 end
 
 # Sample an action from AdversarialPedestrian model
 function Base.rand(rng::AbstractRNG, model::AdversarialPedestrian)
     na = model.next_action
-    PedestrianControl((model.idm.a, 0), na.da, na.noise)
+    if !model.ignore_idm
+        return PedestrianControl((model.idm.a, 0), na.da, na.noise)
+    else
+        return na
+    end
 end
 
 # Observe function for AdversarialPedestrian model
@@ -272,7 +278,6 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
     for (i,veh) in enumerate(scene)
         # Check if the other entity is in the blind spot.
         if !isnothing(model.blindspot) && in_blindspot(posg(ego), model.blindspot, posg(veh))
-            println("here!")
             continue;
         end
         if veh.id != egoid && lane_belief(veh, model, roadway) in lanes_to_yield_to
@@ -290,13 +295,15 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
     # If the vehicle does not have right of way then stop before the intersection
     if !has_right_of_way
         # Compare ttc
-        exit_time = [time_to_cross_distance_const_acc(veh,  model.idm, distance_to_point(veh, roadway, model.intersection_exit_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
-        enter_time = [time_to_cross_distance_const_acc(veh,  model.idm, distance_to_point(veh, roadway, model.intersection_enter_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
+        exit_time = [time_to_cross_distance_const_vel(veh, distance_to_point(veh, roadway, model.intersection_exit_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
+        enter_time = [time_to_cross_distance_const_vel(veh, distance_to_point(veh, roadway, model.intersection_enter_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
         Δs_in_lane = [compute_inlane_headway(ego, veh, roadway, model.blindspot) for veh in vehicles_to_yield_to]
+
         # The intersection is clear of car i if, it exited the intersection in the past, or
         # it will enter the intersection after you have crossed it, or
         # it will have exited a while before you crossed
-        intersection_clear = (exit_time .< 0) .| (enter_time .> time_to_cross) .| (exit_time .+ model.ttc_threshold .< time_to_cross)
+        intersection_clear = (exit_time .<= 0) .| (enter_time .> time_to_cross) .| (exit_time .+ model.ttc_threshold .< time_to_cross)
+        intersection_clear = intersection_clear .& isinf.(Δs_in_lane)
         if !all(intersection_clear)
             # yield to oncoming traffic
             minΔs_to_yield = minimum(Δs_in_lane[.!intersection_clear]) # headways of cars you care about

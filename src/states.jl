@@ -51,7 +51,6 @@ function vec_to_NoisyPedestrian_fn(crosswalk_id::Int)
     end
 end
 
-
 ## Blinker vehicles
 const BLINKERVEHICLE_ENTITY_DIM = 4
 const BLINKERVEHICLE_EXPANDED_ENTITY_DIM = 30

@@ -43,7 +43,8 @@ module AdversarialDriving
     export PEDESTRIAN_DISTURBANCE_DIM, PedestrianControl_to_vec, vec_to_PedestrianControl,
            BLINKERVEHICLE_DISTURBANCE_DIM, BlinkerVehicleControl_to_vec, vec_to_BlinkerVehicleControl,
            BV_ACTIONS, BV_ACTION_PROB, get_actions, get_actionindex, DiscreteActionModel,
-           combine_disturbance_models, combine_continuous, combine_discrete, get_bv_actions, get_rand_bv_actions
+           combine_disturbance_models, combine_continuous, combine_discrete,
+           get_bv_actions, get_rand_bv_actions, get_ped_actions
     include("actions.jl")
 
     #helpers

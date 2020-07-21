@@ -75,3 +75,9 @@ aprob2 = action_prob[2]
 aprob3 = action_prob[3]
 @test isapprox(aprob3/aprob2, 10.)
 
+
+as = get_ped_actions()
+as.actions
+@test as.actions[2][1].da[1] == 1.
+@test as.probs[2] == 1e-2
+

@@ -13,7 +13,6 @@ end
 id(a::Agent) = a.get_initial_entity().id
 
 # Construct a regular Blinker vehicle agent
-#TODO
 function BlinkerVehicleAgent(get_veh::Function, model::TIDM;
     entity_dim = BLINKERVEHICLE_ENTITY_DIM,
     disturbance_dim=BLINKERVEHICLE_DISTURBANCE_DIM,
@@ -27,16 +26,16 @@ function BlinkerVehicleAgent(get_veh::Function, model::TIDM;
 end
 
 # Construct a regular adversarial pedestrian agent
-# TODO
 function NoisyPedestrianAgent(get_ped::Function, model::AdversarialPedestrian;
     entity_dim = PEDESTRIAN_ENTITY_DIM,
     disturbance_dim = PEDESTRIAN_DISTURBANCE_DIM,
     entity_to_vec = NoisyPedestrian_to_vec,
     disturbance_to_vec = PedestrianControl_to_vec,
     vec_to_entity = vec_to_NoisyPedestrian_fn(DEFAULT_CROSSWALK_LANE),
-    vec_to_disturbance = vec_to_PedestrianControl)
+    vec_to_disturbance = vec_to_PedestrianControl,
+    disturbance_model = get_ped_actions())
     Agent(get_ped, model, entity_dim, disturbance_dim, entity_to_vec,
-          disturbance_to_vec,  vec_to_entity, vec_to_disturbance, [])
+          disturbance_to_vec,  vec_to_entity, vec_to_disturbance, disturbance_model)
 end
 
 # Definition of the adversarial driving mdp
@@ -91,8 +90,10 @@ function POMDPs.reward(mdp::AdversarialDrivingMDP, s::Scene, a::Vector{Disturban
     iscollision = length(sp) > 0 && ego_collides(sutid(mdp), sp)
     if mdp.ast_reward
         isterm = isterminal(mdp, sp)
-        r = (isterm && !iscollision)*(-abs(mdp.no_collision_penalty)) + logpdf(mdp, s, a)
-        mdp.scale_reward && (r = r / mdp.no_collision_penalty)
+        r = logpdf(mdp, s, a)
+        r += iscollision * abs(mdp.no_collision_penalty)
+        # r = (isterm && !iscollision)*(-abs(mdp.no_collision_penalty)) + logpdf(mdp, s, a)
+        mdp.scale_reward && (r = r / abs(mdp.no_collision_penalty))
         return r
     else
         return Float64(iscollision)
