@@ -94,9 +94,9 @@ function POMDPs.reward(mdp::AdversarialDrivingMDP, s::Scene, a::Vector{Disturban
         r += iscollision * abs(mdp.no_collision_penalty)
         # r = (isterm && !iscollision)*(-abs(mdp.no_collision_penalty)) + logpdf(mdp, s, a)
         mdp.scale_reward && (r = r / abs(mdp.no_collision_penalty))
-        return r
+        return Float32(r)
     else
-        return Float64(iscollision)
+        return Float32(iscollision)
     end
 end
 
@@ -108,7 +108,7 @@ POMDPs.isterminal(mdp::MDP{Scene, A}, s::Scene) where A = !(sutid(mdp) in s)|| a
 
 # Define the set of actions, action index and probability
 POMDPs.actions(mdp::AdversarialDrivingMDP) = get_actions(mdp.disturbance_model)
-POMDPs.actionindex(mdp::AdversarialDrivingMDP, a::Vector{Disturbance}) = get_actionindex(mdp.disturbance_model, a)
+POMDPs.actionindex(mdp::AdversarialDrivingMDP, a::Vector{Disturbance}) = Int32(get_actionindex(mdp.disturbance_model, a))
 
 # The default disturbance policy according to the disturbance models
 #TODO: Switch the "Function policy" to something that can get logpdf?

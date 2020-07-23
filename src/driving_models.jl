@@ -130,7 +130,7 @@ function AutomotiveSimulator.propagate(ped::Entity{NoisyPedState, D, I}, action:
     vs_entity = Entity(ped.state.veh_state, ped.def, ped.id)
     a_lat_lon = reverse(action.a + action.da)
     vs = propagate(vs_entity, LatLonAccel(a_lat_lon...), roadway, Δt)
-    vs = VehicleState(vs.posG, vs.posF, clamp(vs.v, -3, 3))
+    vs = VehicleState(vs.posG, vs.posF, clamp(vs.v, -3, 3)) # Max pedestrian speed
     nps = NoisyPedState(set_lane(vs, laneid(ped), roadway), action.noise)
     @assert starting_lane == laneid(nps)
     nps
@@ -265,22 +265,37 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
 
     # Compute ego headway to intersection and time to cross
     intrsxn_Δs = distance_to_point(ego, roadway, model.intersection_enter_loc[li])
+    intrsxn_exit_Δs = distance_to_point(ego, roadway, model.intersection_exit_loc[li])
     time_to_cross = time_to_cross_distance_const_acc(ego, model.idm, distance_to_point(ego, roadway, model.intersection_exit_loc[li]))
 
     # Get headway to the forward car
     fore = find_neighbor(scene, roadway, ego, targetpoint_ego = VehicleTargetPointFront(), targetpoint_neighbor = VehicleTargetPointRear())
-    fore_v, fore_Δs = isnothing(fore.ind) ? (NaN, NaN) : (vel(scene[fore.ind]), fore.Δs)
+    fore_v, fore_Δs = isnothing(fore.ind) ? (NaN, Inf) : (vel(scene[fore.ind]), fore.Δs)
+
+
 
     # Check to see if ego car has right of way
     has_right_of_way = true
     lanes_to_yield_to = model.yields_way[li]
     vehicles_to_yield_to = []
     for (i,veh) in enumerate(scene)
-        # Check if the other entity is in the blind spot.
-        if !isnothing(model.blindspot) && in_blindspot(posg(ego), model.blindspot, posg(veh))
-            continue;
+        # if the vehicle is the ego vehicle then move on
+        veh.id != egoid && continue
+
+        # Check if the other entity is in the blind spot. If so, move one
+        !isnothing(model.blindspot) && in_blindspot(posg(ego), model.blindspot, posg(veh)) && continue
+
+        # Check to see if the vehicle is in the ego's lane without the same laneid
+        if laneid(ego) != laneid(veh)
+            Δs_inlane = compute_inlane_headway(ego, veh, roadway)
+            if Δs_inlane < fore_Δs
+                fore_Δs = Δs_inlane
+                fore_v = vel(veh)
+            end
         end
-        if veh.id != egoid && lane_belief(veh, model, roadway) in lanes_to_yield_to
+
+        # If the vehicle is in a lane that the ego should yield to, store it
+        if lane_belief(veh, model, roadway) in lanes_to_yield_to
             has_right_of_way = false
             push!(vehicles_to_yield_to, veh)
         end
@@ -297,21 +312,23 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
         # Compare ttc
         exit_time = [time_to_cross_distance_const_vel(veh, distance_to_point(veh, roadway, model.intersection_exit_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
         enter_time = [time_to_cross_distance_const_vel(veh, distance_to_point(veh, roadway, model.intersection_enter_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
-        Δs_in_lane = [compute_inlane_headway(ego, veh, roadway, model.blindspot) for veh in vehicles_to_yield_to]
+        Δs_in_lane = [compute_inlane_headway(ego, veh, roadway) for veh in vehicles_to_yield_to]
 
         # The intersection is clear of car i if, it exited the intersection in the past, or
         # it will enter the intersection after you have crossed it, or
         # it will have exited a while before you crossed
         intersection_clear = (exit_time .<= 0) .| (enter_time .> time_to_cross) .| (exit_time .+ model.ttc_threshold .< time_to_cross)
-        intersection_clear = intersection_clear .& isinf.(Δs_in_lane)
+        intersection_clear = intersection_clear .& Δs_in_lane .> intrsxn_exit_Δs
+        egoid == 5 && println(Δs_in_lane)
         if !all(intersection_clear)
             # yield to oncoming traffic
             minΔs_to_yield = minimum(Δs_in_lane[.!intersection_clear]) # headways of cars you care about
             # If there isn't a leading car, or if it is past the intersection, use intersection point, otherwise use car
-            if isnan(fore_Δs) || minΔs_to_yield < fore_Δs || (intrsxn_Δs > 0 && intrsxn_Δs < fore_Δs)
+            if isinf(fore_Δs) || minΔs_to_yield < fore_Δs || (intrsxn_Δs > 0 && intrsxn_Δs < fore_Δs)
                 next_idm = track_longitudinal!(model.idm, ego_v, 0., min(minΔs_to_yield, intrsxn_Δs))
             end
         end
+
     end
     model.idm = next_idm
     model
@@ -322,7 +339,7 @@ end
 #         if veh.id != egoid &&
 # end
 
-function compute_inlane_headway(ego, veh, roadway, blindspot)
+function compute_inlane_headway(ego, veh, roadway)
     elane = laneid(ego)
     v = Entity(set_lane(veh.state.veh_state, elane, roadway), veh.def, veh.id)
     f = posf(v)
@@ -423,7 +440,7 @@ function ego_collides(egoid, scene)
 
     ego = get_by_id(scene, egoid)
     for (i,veh) in enumerate(scene)
-        if egoid != veh.id && collision_checker(ego, veh)
+        if egoid != veh.id && collision_checker(ego, veh) && vel(ego) > 0.1
             return true
         end
     end

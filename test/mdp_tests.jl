@@ -27,7 +27,8 @@ ped1 = NoisyPedestrianAgent(get_pedestrian(id=2, s=0., v=4.), AdversarialPedestr
 @test ped1.disturbance_dim == PEDESTRIAN_DISTURBANCE_DIM
 @test length(ped1.entity_to_vec(ped1.get_initial_entity())) == PEDESTRIAN_ENTITY_DIM
 @test ped1.entity_to_vec(ped1.get_initial_entity())  == ped1.entity_to_vec(ped1.vec_to_entity(ped1.entity_to_vec(ped1.get_initial_entity()), id(ped1), ped_roadway, ped1.model))
-@test ped1.disturbance_model == []
+@test ped1.disturbance_model.actions == get_ped_actions().actions
+@test ped1.disturbance_model.probs == get_ped_actions().probs
 @test id(ped1) == 2
 
 # #Test construction of a full MDP with BV in the Tintersection
@@ -110,7 +111,7 @@ sp2, r2 = gen(mdp, s, actions(mdp)[2]) # Slowdown of first adversary
 # Run full simulation with random policy
 mdp.dt = 0.1
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> actions(mdp)[1]))
-@test length(hist) == 15
+@test length(hist) == 26
 # nticks = length(hist)
 # timestep = mdp.dt
 # scenes = state_hist(hist)
@@ -132,9 +133,11 @@ hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> po
 mdp = AdversarialDrivingMDP(sut_agent, [adv1], Tint_roadway, 0.15, ast_reward = true)
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> posf(get_by_id(initialstate(mdp),1)).s <=25 ? blinker_action : actions(mdp)[1]))
 @test undiscounted_reward(hist) > -1
+undiscounted_reward(hist)
 
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> actions(mdp)[1]))
-@test undiscounted_reward(hist) < -1
+@test undiscounted_reward(hist) < 1
+@test undiscounted_reward(hist) > 0.8
 
 
 ## Test random initial states
