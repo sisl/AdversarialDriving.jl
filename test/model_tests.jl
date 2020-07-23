@@ -233,9 +233,8 @@ models = Dict(i => TIDM(Tint_TIDM_template) for i=1:5)
 nticks, timestep = 100, 0.1
 scenes = AutomotiveSimulator.simulate(scene, Tint_roadway, models, nticks, timestep)
 @test length(scenes) == nticks + 1
-render([Tint_roadway, scenes[end-90]])
 # test end_of_road
-@test end_of_road(scenes[end][1], Tint_roadway, Inf)
+@test !end_of_road(scenes[end][1], Tint_roadway, Inf) # ego vehicle tracks the last vehicle to go straight
 @test end_of_road(scenes[end][2], Tint_roadway, Inf)
 @test end_of_road(scenes[end][3], Tint_roadway, Inf)
 @test end_of_road(scenes[end][4], Tint_roadway, Inf)

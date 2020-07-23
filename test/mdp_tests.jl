@@ -111,7 +111,7 @@ sp2, r2 = gen(mdp, s, actions(mdp)[2]) # Slowdown of first adversary
 # Run full simulation with random policy
 mdp.dt = 0.1
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> actions(mdp)[1]))
-@test length(hist) == 26
+@test length(hist) == 52
 # nticks = length(hist)
 # timestep = mdp.dt
 # scenes = state_hist(hist)
@@ -132,12 +132,12 @@ hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> po
 
 mdp = AdversarialDrivingMDP(sut_agent, [adv1], Tint_roadway, 0.15, ast_reward = true)
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> posf(get_by_id(initialstate(mdp),1)).s <=25 ? blinker_action : actions(mdp)[1]))
-@test undiscounted_reward(hist) > -1
+@test undiscounted_reward(hist) < 1
+@test undiscounted_reward(hist) > 0.8
 undiscounted_reward(hist)
 
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> actions(mdp)[1]))
-@test undiscounted_reward(hist) < 1
-@test undiscounted_reward(hist) > 0.8
+@test undiscounted_reward(hist) < 0
 
 
 ## Test random initial states
