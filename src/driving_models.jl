@@ -273,14 +273,13 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
     fore_v, fore_Δs = isnothing(fore.ind) ? (NaN, Inf) : (vel(scene[fore.ind]), fore.Δs)
 
 
-
     # Check to see if ego car has right of way
     has_right_of_way = true
     lanes_to_yield_to = model.yields_way[li]
     vehicles_to_yield_to = []
     for (i,veh) in enumerate(scene)
         # if the vehicle is the ego vehicle then move on
-        veh.id != egoid && continue
+        veh.id == egoid && continue
 
         # Check if the other entity is in the blind spot. If so, move one
         !isnothing(model.blindspot) && in_blindspot(posg(ego), model.blindspot, posg(veh)) && continue
@@ -318,7 +317,7 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
         # it will enter the intersection after you have crossed it, or
         # it will have exited a while before you crossed
         intersection_clear = (exit_time .<= 0) .| (enter_time .> time_to_cross) .| (exit_time .+ model.ttc_threshold .< time_to_cross)
-        intersection_clear = intersection_clear .& Δs_in_lane .> intrsxn_exit_Δs
+        intersection_clear = intersection_clear .& (Δs_in_lane .> intrsxn_exit_Δs)
         egoid == 5 && println(Δs_in_lane)
         if !all(intersection_clear)
             # yield to oncoming traffic

@@ -199,3 +199,12 @@ d = Dict(:da => Uniform(),
 
 h = POMDPSimulators.simulate(HistoryRecorder(),mdp, continuous_policy(d))
 
+# Sample with blindspot
+blindspot = Blindspot(rand([rand(Uniform(-π/3,-π/9)), rand(Uniform(π/9,π/3))]), rand(Uniform(π/20, π/9)))
+adv_ped = NoisyPedestrianAgent(get_rand_pedestrian(id=1, s_dist=Uniform(9, 10), v_dist=Uniform(0, 0.1)), AdversarialPedestrian(ignore_idm = true))
+sut_agent = BlinkerVehicleAgent(get_rand_ped_vehicle(id=2, s_dist=Uniform(0, 10.), v_dist=Uniform(6, 15)), TIDM(ped_TIDM_template, idm = IntelligentDriverModel(v_des = 15), blindspot = blindspot))
+mdp = AdversarialDrivingMDP(sut_agent, [adv_ped], ped_roadway, 0.1, ast_reward=true, γ=0.95)
+
+
+r = mean([POMDPSimulators.simulate(RolloutSimulator(max_steps = 100), mdp, FunctionPolicy((s) -> rand(actions(mdp)))) for i=1:100])
+@test r < 0
