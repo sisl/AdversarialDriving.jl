@@ -4,16 +4,16 @@ using POMDPs, POMDPPolicies, POMDPSimulators
 
 sut_agent = BlinkerVehicleAgent(get_ped_vehicle(id=1, s=5., v=15.), TIDM(ped_TIDM_template, noisy_observations = true))
 adv_ped = NoisyPedestrianAgent(get_pedestrian(id=2, s=7., v=2.0), AdversarialPedestrian())
-mdp = AdversarialDrivingMDP(sut_agent, [adv_ped], ped_roadway, 0.1)
+mdp = AdversarialDrivingMDP(sut_agent, [adv_ped], ped_roadway, 0.2)
 
 null_action = Disturbance[PedestrianControl()]
 noisy_action = Disturbance[PedestrianControl(noise = Noise((-10.,0.), -2))]
 
 # Nominal Behavior
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> null_action))
-scenes_to_gif(state_hist(hist), mdp.roadway, "ped_crosswalk_nominal.gif", others = [crosswalk])
+scenes_to_gif([s.s for s in hist], mdp.roadway, "ped_crosswalk_nominal.gif", others = [crosswalk])
 
 # Behavior with noise
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> noisy_action))
-scenes_to_gif(state_hist(hist), mdp.roadway, "ped_crosswalk_failure.gif", others = [crosswalk])
+scenes_to_gif([s.s for s in hist], mdp.roadway, "ped_crosswalk_failure.gif", others = [crosswalk])
 

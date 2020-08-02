@@ -307,15 +307,25 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
     next_idm = track_longitudinal!(model.idm, ego_v, fore_v, fore_Δs)
     # If the vehicle does not have right of way then stop before the intersection
     if !has_right_of_way
-        # Compare ttc
-        exit_time = [time_to_cross_distance_const_vel(veh, distance_to_point(veh, roadway, model.intersection_exit_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
-        enter_time = [time_to_cross_distance_const_vel(veh, distance_to_point(veh, roadway, model.intersection_enter_loc[laneid(veh)])) for veh in vehicles_to_yield_to]
-        Δs_in_lane = [compute_inlane_headway(ego, veh, roadway) for veh in vehicles_to_yield_to]
+        Nv = length(vehicles_to_yield_to)
+        in_intersection = Vector{Bool}(undef, Nv)
+        exit_time = Vector{Float64}(undef, Nv)
+        enter_time = Vector{Float64}(undef, Nv)
+        Δs_in_lane = Vector{Float64}(undef, Nv)
+        for (i, veh) in zip(1:Nv, vehicles_to_yield_to)
+            _exit = distance_to_point(veh, roadway, model.intersection_exit_loc[laneid(veh)])
+            _enter = distance_to_point(veh, roadway, model.intersection_enter_loc[laneid(veh)])
+            in_intersection[i] = (_enter < 2 && _exit > 0)
+            exit_time[i] = time_to_cross_distance_const_vel(veh, _exit)
+            enter_time[i] = time_to_cross_distance_const_vel(veh, _enter)
+            Δs_in_lane[i] = compute_inlane_headway(ego, veh, roadway)
+        end
 
         # The intersection is clear of car i if, it exited the intersection in the past, or
         # it will enter the intersection after you have crossed it, or
         # it will have exited a while before you crossed
         intersection_clear = (exit_time .<= 0) .| (enter_time .> time_to_cross) .| (exit_time .+ model.ttc_threshold .< time_to_cross)
+        intersection_clear = intersection_clear .& (.!in_intersection)
         intersection_clear = intersection_clear .& (Δs_in_lane .> intrsxn_exit_Δs)
         if !all(intersection_clear)
             # yield to oncoming traffic

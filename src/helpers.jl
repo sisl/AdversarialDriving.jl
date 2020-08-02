@@ -77,11 +77,12 @@ end
 
 # Create a random IntelligentDriverModel
 function random_IDM(rng::AbstractRNG)
-    headway_t = max(0.5, rand(rng, Normal(1.5, 0.5))) # desired time headway [s]
-    v_des = max(15.0, rand(rng, Normal(20.0, 5.0))) # desired speed [m/s]
-    s_min = max(1.0, rand(rng, Normal(5.0, 1.0))) # minimum acceptable gap [m]
-    a_max = max(2.0, rand(rng, Normal(3.0, 1.0))) # maximum acceleration ability [m/s²]
-    IntelligentDriverModel(T = headway_t, v_des = v_des, s_min = s_min, a_max = a_max)
+    headway_t = rand(rng, Uniform(0.5, 1.5)) # desired time headway [s]
+    v_des = rand(rng, Uniform(10., 15.))
+    s_min = rand(rng, Uniform(2.0, 5.0)) # minimum acceptable gap [m]
+    d_cmf = rand(rng, Uniform(1.5, 2.5)) # comfortable deceleration [m/s²] (positive)
+    d_max = rand(rng, Uniform(5.0, 9.0)) # maximum deceleration [m/s²] (positive)
+    IntelligentDriverModel(T = headway_t, v_des = v_des, s_min = s_min, d_cmf = d_cmf, d_max = d_max)
 end
 
 ## action conversion function

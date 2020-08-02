@@ -62,7 +62,7 @@ function road_with_crosswalk(; roadway_length = 50., crosswalk_length = 20., cro
     # the exit point of the intersection for each lane
     intersection_exit_loc = Dict(
         1 => VecSE2(crosswalk_pos + crosswalk_width /2., 0., 0),
-        2 => VecSE2(crosswalk_pos, DEFAULT_LANE_WIDTH / 2., 0)
+        2 => VecSE2(crosswalk_pos, 3*DEFAULT_LANE_WIDTH / 2., 0)
         )
 
     goals = Dict{Int64, Array{Int}}(
