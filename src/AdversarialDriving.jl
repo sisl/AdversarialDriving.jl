@@ -31,7 +31,8 @@ module AdversarialDriving
     # MDP
     export Agent, BlinkerVehicleAgent, NoisyPedestrianAgent, id,
            AdversarialDrivingMDP, action_probability, step_scene,
-           agents, adversaries, model, sut, sutid, update_adversary!, DrivingMDP
+           agents, adversaries, model, sut, sutid, update_adversary!, DrivingMDP,
+           default_policy
     include("mdp.jl")
 
     # states
