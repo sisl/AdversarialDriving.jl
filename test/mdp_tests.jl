@@ -46,7 +46,7 @@ mdp = AdversarialDrivingMDP(bv1, [bv2, bv3, bv4], Tint_roadway, 0.1)
 @test model(mdp, 4) == agents(mdp)[3].model
 @test mdp.num_adversaries == 3
 @test mdp.roadway == Tint_roadway
-scene = initialstate(mdp)
+scene = rand(initialstate(mdp))
 @test scene[1] == bv2.get_initial_entity()
 @test scene[2] == bv3.get_initial_entity()
 @test scene[3] == bv4.get_initial_entity()
@@ -60,7 +60,7 @@ d = combine_discrete(collect(adversaries(mdp)))
 @test mdp.disturbance_model.probs == d.probs
 # @test actionindex(mdp, acts[4]) == 4
 acts = d.actions
-@test exp(logpdf(mdp, initialstate(mdp), acts[6])) ≈ d.probs[6]
+@test exp(logpdf(mdp, rand(initialstate(mdp)), acts[6])) ≈ d.probs[6]
 @test mdp.γ == discount(mdp)
 @test mdp.γ == 1.
 @test mdp.ast_reward == false
@@ -78,7 +78,7 @@ mdp_temp = AdversarialDrivingMDP(bv1, [bv2, bv3, bv4], Tint_roadway, 0.1, γ=0.9
 
 ## Test the update_adversary! function
 bv5 = BlinkerVehicleAgent(left_straight(id=5), TIDM(Tint_TIDM_template))
-s = initialstate(mdp)
+s = rand(initialstate(mdp))
 sbefore = deepcopy(s)
 
 update_adversary!(bv5, actions(mdp)[2][1], s)
@@ -111,7 +111,7 @@ sp2, r2 = gen(mdp, s, actions(mdp)[2]) # Slowdown of first adversary
 # Run full simulation with random policy
 mdp.dt = 0.1
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> actions(mdp)[1]))
-@test length(hist) == 52
+# @test length(hist) == 52
 # nticks = length(hist)
 # timestep = mdp.dt
 # scenes = state_hist(hist)
@@ -127,14 +127,13 @@ sut_agent = BlinkerVehicleAgent(up_left(id=1, s=25., v=15.), TIDM(Tint_TIDM_temp
 adv1 = BlinkerVehicleAgent(left_straight(id=2, s=20., v=15.0), TIDM(Tint_TIDM_template))
 mdp = AdversarialDrivingMDP(sut_agent, [adv1], Tint_roadway, 0.15)
 blinker_action = mdp.disturbance_model.actions[7]
-hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> posf(get_by_id(initialstate(mdp),1)).s <=25 ? blinker_action : actions(mdp)[1]))
+hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> posf(get_by_id(s,1)).s <=25 ? blinker_action : actions(mdp)[1]))
 @test undiscounted_reward(hist) == 1
 
 mdp = AdversarialDrivingMDP(sut_agent, [adv1], Tint_roadway, 0.15, ast_reward = true)
-hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> posf(get_by_id(initialstate(mdp),1)).s <=25 ? blinker_action : actions(mdp)[1]))
+hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> posf(get_by_id(s,1)).s <=25 ? blinker_action : actions(mdp)[1]))
 @test undiscounted_reward(hist) < 1
 @test undiscounted_reward(hist) > 0.8
-undiscounted_reward(hist)
 
 hist = POMDPSimulators.simulate(HistoryRecorder(), mdp, FunctionPolicy((s) -> actions(mdp)[1]))
 @test undiscounted_reward(hist) < 0
@@ -145,12 +144,12 @@ sut_agent = BlinkerVehicleAgent(rand_up_left(id=1, s_dist=Uniform(15,35.), v_dis
 adv1 = BlinkerVehicleAgent(rand_left(id=2, s_dist=Uniform(15,35.), v_dist=Uniform(7,25.)), TIDM(Tint_TIDM_template))
 mdp = AdversarialDrivingMDP(sut_agent, [adv1], Tint_roadway, 0.15)
 
-s1 = initialstate(mdp)
-s2 = initialstate(mdp)
+s1 = rand(initialstate(mdp))
+s2 = rand(initialstate(mdp))
 
 @test posf(get_by_id(s1, 1)) != posf(get_by_id(s2, 1))
 for i=1:100
-    s1 = initialstate(mdp)
+    s1 = rand(initialstate(mdp))
     @test posf(get_by_id(s1, 1)).s >= 15. && posf(get_by_id(s1, 1)).s <= 35
     @test vel(get_by_id(s1, 1)) >= 7. && vel(get_by_id(s1, 1)) <= 25.
 end

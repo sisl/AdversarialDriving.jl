@@ -131,14 +131,18 @@ end
 
 ## default actions
 # Function to setup default actions for the blinker verhicle
-get_bv_actions(med_accel = 1.5, large_accel = 3.0, med_prob = 1e-2, large_prob = 1e-3) = DiscreteActionModel(
+get_bv_actions(med_accel = 1.5, large_accel = 3.0, med_prob = 1e-3, large_prob = 1e-4) = DiscreteActionModel(
                       Vector{Vector{Disturbance}}([ [BlinkerVehicleControl(0, 0., false, false, Noise())],
-                        [BlinkerVehicleControl(0, -large_accel, false, false, Noise())],
-                        [BlinkerVehicleControl(0, -med_accel, false, false, Noise())],
-                        [BlinkerVehicleControl(0, med_accel, false, false, Noise())],
-                        [BlinkerVehicleControl(0, large_accel, false, false, Noise())],
-                        [BlinkerVehicleControl(0, 0., true, false, Noise())], # toggle goal
-                        [BlinkerVehicleControl(0, 0., false, true, Noise())] # toggle blinker
+                        [BlinkerVehicleControl(da = -large_accel)],
+                        [BlinkerVehicleControl(da = -med_accel)],
+                        [BlinkerVehicleControl(da = med_accel)],
+                        [BlinkerVehicleControl(da = large_accel)],
+                        [BlinkerVehicleControl(toggle_goal = true)], # toggle goal
+                        [BlinkerVehicleControl(toggle_blinker = true)], # toggle blinker
+                        # [BlinkerVehicleControl(noise = Noise(pos = VecE2(-1, 0.)))],
+                        # [BlinkerVehicleControl(noise = Noise(pos = VecE2(1, 0.)))],
+                        # [BlinkerVehicleControl(noise = Noise(vel = -2))],
+                        # [BlinkerVehicleControl(noise = Noise(vel = 2))]
                        ]),
                         [1 - (4*large_prob + 2*med_prob), large_prob, med_prob, med_prob, large_prob, large_prob, large_prob]
                         )

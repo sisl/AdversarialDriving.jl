@@ -44,19 +44,20 @@ bv3 = BlinkerVehicleAgent(right_turnleft(id=3), TIDM(Tint_TIDM_template))
 bv4 = BlinkerVehicleAgent(left_turnright(id=4, s=40.), TIDM(Tint_TIDM_template))
 mdp = AdversarialDrivingMDP(bv1, [bv2, bv3, bv4], Tint_roadway, 0.1)
 
-vec = convert_s(AbstractArray, initialstate(mdp), mdp)
+IS = rand(initialstate(mdp))
+vec = convert_s(AbstractArray, IS, mdp)
 s_back = convert_s(Scene, vec, mdp)
-@test s_back[1] == initialstate(mdp)[1]
-@test s_back[2] == initialstate(mdp)[2]
-@test s_back[3] == initialstate(mdp)[3]
-@test s_back[4] == initialstate(mdp)[4]
+@test s_back[1] == IS[1]
+@test s_back[2] == IS[2]
+@test s_back[3] == IS[3]
+@test s_back[4] == IS[4]
 
-vec2 = convert_s(Array{Float64, 1}, initialstate(mdp), mdp)
+vec2 = convert_s(Array{Float64, 1}, IS, mdp)
 @test vec == vec2
 
-vec3 = convert_s(Array{Float32, 1}, initialstate(mdp), mdp)
+vec3 = convert_s(Array{Float32, 1}, IS, mdp)
 @test vec3[1] isa Float32
 
-vec4 = convert_s(Array{Float32}, initialstate(mdp), mdp)
+vec4 = convert_s(Array{Float32}, IS, mdp)
 @test vec3 == vec4
 

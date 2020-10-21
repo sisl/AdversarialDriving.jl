@@ -1,14 +1,13 @@
-# This example shows the pedestrain and crosswalk scenario -- nominal and failure scenario
 using AdversarialDriving
 using POMDPs, POMDPPolicies, POMDPSimulators
-# using AutomotiveVisualization
+using AutomotiveVisualization
 
 sut_agent = BlinkerVehicleAgent(get_ped_vehicle(id=1, s=5., v=15.), TIDM(ped_TIDM_template, noisy_observations = true))
 adv_ped = NoisyPedestrianAgent(get_pedestrian(id=2, s=7., v=2.0), AdversarialPedestrian())
 mdp = AdversarialDrivingMDP(sut_agent, [adv_ped], ped_roadway, 0.2)
 
-
-s = initialstate(mdp)
+# Render a single frame
+s = rand(initialstate(mdp))
 c = render([mdp.roadway,
                 crosswalk,
                 VelocityArrow(entity = s[1], color = colorant"black"),

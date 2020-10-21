@@ -62,7 +62,7 @@ end
 function noisy_entity(ent, roadway::Roadway)
     f = posf(ent)
     Δs, Δt = noise(ent).pos
-    noisy_f = Frenet(get_lane(roadway, ent), f.s + Δs, f.t + Δt, f.ϕ)
+    noisy_f = Frenet(roadway[f.roadind.tag], f.s + Δs, f.t + Δt, f.ϕ)
     noisy_g = posg(noisy_f, roadway)
     noisy_v = vel(ent) + noise(ent).vel
     noisy_vs = VehicleState(noisy_g, noisy_f, noisy_v)
@@ -130,7 +130,7 @@ function AutomotiveSimulator.propagate(ped::Entity{NoisyPedState, D, I}, action:
     vs_entity = Entity(ped.state.veh_state, ped.def, ped.id)
     a_lat_lon = reverse(action.a + action.da)
     vs = propagate(vs_entity, LatLonAccel(a_lat_lon...), roadway, Δt)
-    vs = VehicleState(vs.posG, vs.posF, clamp(vs.v, -3, 3)) # Max pedestrian speed
+    vs = VehicleState(vs.posG, vs.posF, clamp(vs.v, -3., 3.)) # Max pedestrian speed
     nps = NoisyPedState(set_lane(vs, laneid(ped), roadway), action.noise)
     @assert starting_lane == laneid(nps)
     nps
@@ -232,7 +232,7 @@ end
 
 # Define a driving model for a T-intersection IDM model
 @with_kw mutable struct TIDM <: DriverModel{BlinkerVehicleControl}
-    idm::IntelligentDriverModel = IntelligentDriverModel() # underlying idm
+    idm::IntelligentDriverModel = IntelligentDriverModel(v_des = 15.) # underlying idm
     noisy_observations::Bool = false # Whether or not this model gets noisy observations
     ttc_threshold = 7 # threshold through intersection
     next_action::BlinkerVehicleControl = BlinkerVehicleControl() # The next action that the model will do (for controllable vehicles)
@@ -306,7 +306,7 @@ function AutomotiveSimulator.observe!(model::TIDM, input_scene::Scene, roadway::
 
     next_idm = track_longitudinal!(model.idm, ego_v, fore_v, fore_Δs)
     # If the vehicle does not have right of way then stop before the intersection
-    if !has_right_of_way
+    if !has_right_of_way && intrsxn_exit_Δs > 0
         Nv = length(vehicles_to_yield_to)
         in_intersection = Vector{Bool}(undef, Nv)
         exit_time = Vector{Float64}(undef, Nv)
@@ -359,7 +359,6 @@ end
 function lane_belief(veh::Entity, model::TIDM, roadway::Roadway)
     possible_lanes = model.goals[laneid(veh)]
     length(possible_lanes) == 1 && return possible_lanes[1]
-
     possible_lanes = possible_lanes[[can_have_goal(veh, l, roadway) for l in possible_lanes]]
     length(possible_lanes) == 1 && return possible_lanes[1]
 

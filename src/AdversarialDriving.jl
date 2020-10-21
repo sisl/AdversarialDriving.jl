@@ -2,6 +2,7 @@ module AdversarialDriving
     using POMDPs
     using POMDPPolicies
     using POMDPSimulators
+    using POMDPModelTools
     using AutomotiveSimulator
     using AutomotiveVisualization
     using Distributions

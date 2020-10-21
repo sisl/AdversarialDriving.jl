@@ -65,7 +65,7 @@ function scenes_to_gif(scenes, roadway, filename; others = [], others_fn = [], f
     files = []
     for i=1:length(scenes)
         verbose && println("frame $i")
-        frame = render([roadway, others..., [f(scenes[i]) for f in others_fn]..., scenes[i]], canvas_width=canvas[1], canvas_height=canvas[2], camera = camera)
+        frame = AutomotiveVisualization.render([roadway, others..., [f(scenes[i]) for f in others_fn]..., scenes[i]], canvas_width=canvas[1], canvas_height=canvas[2], camera = camera)
         file = string("/tmp/test_", lpad(i,4, "0"), ".png")
         push!(files, file)
         write(file, frame)

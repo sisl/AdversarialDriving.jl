@@ -72,9 +72,9 @@ function AdversarialDrivingMDP(sut::Agent, adversaries::Vector{Agent}, road::Roa
                          ast_reward, no_collision_penalty, scale_reward, end_of_road)
 end
 
-# Returns the intial state of the mdp simulator
+# Returns the intial state of the mdp simulator (as a Deteriministic distribution)
 function POMDPs.initialstate(mdp::MDP{Scene, A}, rng::AbstractRNG = Random.GLOBAL_RNG) where A
-     Scene([a.get_initial_entity(rng) for a in agents(mdp)])
+     POMDPModelTools.Deterministic(Scene([a.get_initial_entity(rng) for a in agents(mdp)]))
  end
 
 # The generative interface to the POMDP
