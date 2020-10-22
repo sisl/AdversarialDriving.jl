@@ -60,12 +60,13 @@ get_rand_pedestrian(;id::Int64, s_dist, v_dist) = (rng::AbstractRNG = Random.GLO
 
 ## Create gif from rollout
 
-function scenes_to_gif(scenes, roadway, filename; others = [], others_fn = [], fps = 10, camera = nothing, canvas = (1200, 800), repeat_last_frame = 1 )
+function scenes_to_gif(scenes, roadway, filename; others = [], others_fn = [], fps = 10, camera = nothing, canvas = (1200, 800), repeat_last_frame = 1, verbose = false )
     push!(scenes, fill(scenes[end], repeat_last_frame)...)
     files = []
     for i=1:length(scenes)
-        frame = render([roadway, others..., [f(scenes[i]) for f in others_fn]..., scenes[i]], canvas_width=canvas[1], canvas_height=canvas[2], camera = camera)
-        file = string("/tmp/test_", lpad(i,2, "0"), ".png")
+        verbose && println("frame $i")
+        frame = AutomotiveVisualization.render([roadway, others..., [f(scenes[i]) for f in others_fn]..., scenes[i]], canvas_width=canvas[1], canvas_height=canvas[2], camera = camera)
+        file = string("/tmp/test_", lpad(i,4, "0"), ".png")
         push!(files, file)
         write(file, frame)
     end
@@ -76,11 +77,12 @@ end
 
 # Create a random IntelligentDriverModel
 function random_IDM(rng::AbstractRNG)
-    headway_t = max(0.5, rand(rng, Normal(1.5, 0.5))) # desired time headway [s]
-    v_des = max(15.0, rand(rng, Normal(20.0, 5.0))) # desired speed [m/s]
-    s_min = max(1.0, rand(rng, Normal(5.0, 1.0))) # minimum acceptable gap [m]
-    a_max = max(2.0, rand(rng, Normal(3.0, 1.0))) # maximum acceleration ability [m/s²]
-    IntelligentDriverModel(T = headway_t, v_des = v_des, s_min = s_min, a_max = a_max)
+    headway_t = rand(rng, Uniform(0.5, 1.5)) # desired time headway [s]
+    v_des = rand(rng, Uniform(10., 15.))
+    s_min = rand(rng, Uniform(2.0, 5.0)) # minimum acceptable gap [m]
+    d_cmf = rand(rng, Uniform(1.5, 2.5)) # comfortable deceleration [m/s²] (positive)
+    d_max = rand(rng, Uniform(5.0, 9.0)) # maximum deceleration [m/s²] (positive)
+    IntelligentDriverModel(T = headway_t, v_des = v_des, s_min = s_min, d_cmf = d_cmf, d_max = d_max)
 end
 
 ## action conversion function

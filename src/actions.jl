@@ -131,14 +131,18 @@ end
 
 ## default actions
 # Function to setup default actions for the blinker verhicle
-get_bv_actions(med_accel = 1.5, large_accel = 3.0, med_prob = 1e-2, large_prob = 1e-3) = DiscreteActionModel(
+get_bv_actions(med_accel = 1.5, large_accel = 3.0, med_prob = 1e-3, large_prob = 1e-4) = DiscreteActionModel(
                       Vector{Vector{Disturbance}}([ [BlinkerVehicleControl(0, 0., false, false, Noise())],
-                        [BlinkerVehicleControl(0, -large_accel, false, false, Noise())],
-                        [BlinkerVehicleControl(0, -med_accel, false, false, Noise())],
-                        [BlinkerVehicleControl(0, med_accel, false, false, Noise())],
-                        [BlinkerVehicleControl(0, large_accel, false, false, Noise())],
-                        [BlinkerVehicleControl(0, 0., true, false, Noise())], # toggle goal
-                        [BlinkerVehicleControl(0, 0., false, true, Noise())] # toggle blinker
+                        [BlinkerVehicleControl(da = -large_accel)],
+                        [BlinkerVehicleControl(da = -med_accel)],
+                        [BlinkerVehicleControl(da = med_accel)],
+                        [BlinkerVehicleControl(da = large_accel)],
+                        [BlinkerVehicleControl(toggle_goal = true)], # toggle goal
+                        [BlinkerVehicleControl(toggle_blinker = true)], # toggle blinker
+                        # [BlinkerVehicleControl(noise = Noise(pos = VecE2(-1, 0.)))],
+                        # [BlinkerVehicleControl(noise = Noise(pos = VecE2(1, 0.)))],
+                        # [BlinkerVehicleControl(noise = Noise(vel = -2))],
+                        # [BlinkerVehicleControl(noise = Noise(vel = 2))]
                        ]),
                         [1 - (4*large_prob + 2*med_prob), large_prob, med_prob, med_prob, large_prob, large_prob, large_prob]
                         )
@@ -166,3 +170,19 @@ end
 
 
 # TODO Add default distributions as needed
+
+get_ped_actions(accel = 1., noise_pos = 1., p = 1e-2) = DiscreteActionModel(
+                      Vector{Vector{Disturbance}}([
+                        [PedestrianControl()],
+                        [PedestrianControl(da = VecE2(accel, 0.))],
+                        [PedestrianControl(da = VecE2(-accel, 0.))],
+                        [PedestrianControl(da = VecE2(0., accel))],
+                        [PedestrianControl(da = VecE2(0., -accel))],
+                        # [PedestrianControl(noise = Noise(pos = VecE2(-noise_pos, 0.)))],
+                        # [PedestrianControl(noise = Noise(pos = VecE2(noise_pos, 0.)))],
+                        # [PedestrianControl(noise = Noise(pos = VecE2(0., noise_pos)))],
+                        # [PedestrianControl(noise = Noise(pos = VecE2(0., -noise_pos)))],
+                       ]),
+                        [1 - (4*p), p, p, p, p]#, p, p, p, p]
+                        )
+

@@ -13,6 +13,8 @@ function POMDPs.convert_s(::Type{Scene}, s::AbstractArray{Float64}, mdp::MDP{Sce
     isempty(entities) ? Scene(typeof(sut(mdp).get_initial_entity())) : Scene([entities...])
 end
 
+POMDPs.convert_s(::Type{Scene}, s::AbstractArray{Float32}, mdp::MDP{Scene, A}) where A = convert_s(Scene, Float64.(s), mdp)
+
 # Convert from Scene to a vector
 function POMDPs.convert_s(::Type{AbstractArray}, state::Scene, mdp::MDP{Scene, A}) where A
     isempty(mdp.last_observation) && (mdp.last_observation = zeros(sum([a.entity_dim for a in agents(mdp)])))
@@ -50,7 +52,6 @@ function vec_to_NoisyPedestrian_fn(crosswalk_id::Int)
         bv = Entity(NoisyPedState(vs, Noise()), PEDESTRIAN_DEF, id)
     end
 end
-
 
 ## Blinker vehicles
 const BLINKERVEHICLE_ENTITY_DIM = 4

@@ -13,7 +13,6 @@ end
 id(a::Agent) = a.get_initial_entity().id
 
 # Construct a regular Blinker vehicle agent
-#TODO
 function BlinkerVehicleAgent(get_veh::Function, model::TIDM;
     entity_dim = BLINKERVEHICLE_ENTITY_DIM,
     disturbance_dim=BLINKERVEHICLE_DISTURBANCE_DIM,
@@ -27,16 +26,16 @@ function BlinkerVehicleAgent(get_veh::Function, model::TIDM;
 end
 
 # Construct a regular adversarial pedestrian agent
-# TODO
 function NoisyPedestrianAgent(get_ped::Function, model::AdversarialPedestrian;
     entity_dim = PEDESTRIAN_ENTITY_DIM,
     disturbance_dim = PEDESTRIAN_DISTURBANCE_DIM,
     entity_to_vec = NoisyPedestrian_to_vec,
     disturbance_to_vec = PedestrianControl_to_vec,
     vec_to_entity = vec_to_NoisyPedestrian_fn(DEFAULT_CROSSWALK_LANE),
-    vec_to_disturbance = vec_to_PedestrianControl)
+    vec_to_disturbance = vec_to_PedestrianControl,
+    disturbance_model = get_ped_actions())
     Agent(get_ped, model, entity_dim, disturbance_dim, entity_to_vec,
-          disturbance_to_vec,  vec_to_entity, vec_to_disturbance, [])
+          disturbance_to_vec,  vec_to_entity, vec_to_disturbance, disturbance_model)
 end
 
 # Definition of the adversarial driving mdp
@@ -73,9 +72,9 @@ function AdversarialDrivingMDP(sut::Agent, adversaries::Vector{Agent}, road::Roa
                          ast_reward, no_collision_penalty, scale_reward, end_of_road)
 end
 
-# Returns the intial state of the mdp simulator
+# Returns the intial state of the mdp simulator (as a Deteriministic distribution)
 function POMDPs.initialstate(mdp::MDP{Scene, A}, rng::AbstractRNG = Random.GLOBAL_RNG) where A
-     Scene([a.get_initial_entity(rng) for a in agents(mdp)])
+     POMDPModelTools.Deterministic(Scene([a.get_initial_entity(rng) for a in agents(mdp)]))
  end
 
 # The generative interface to the POMDP
@@ -91,11 +90,13 @@ function POMDPs.reward(mdp::AdversarialDrivingMDP, s::Scene, a::Vector{Disturban
     iscollision = length(sp) > 0 && ego_collides(sutid(mdp), sp)
     if mdp.ast_reward
         isterm = isterminal(mdp, sp)
-        r = (isterm && !iscollision)*(-abs(mdp.no_collision_penalty)) + logpdf(mdp, s, a)
-        mdp.scale_reward && (r = r / mdp.no_collision_penalty)
-        return r
+        r = logpdf(mdp, s, a)
+        r += iscollision * abs(mdp.no_collision_penalty)
+        # r = (isterm && !iscollision)*(-abs(mdp.no_collision_penalty)) + logpdf(mdp, s, a)
+        mdp.scale_reward && (r = r / abs(mdp.no_collision_penalty))
+        return Float32(r)
     else
-        return Float64(iscollision)
+        return Float32(iscollision)
     end
 end
 
@@ -107,7 +108,7 @@ POMDPs.isterminal(mdp::MDP{Scene, A}, s::Scene) where A = !(sutid(mdp) in s)|| a
 
 # Define the set of actions, action index and probability
 POMDPs.actions(mdp::AdversarialDrivingMDP) = get_actions(mdp.disturbance_model)
-POMDPs.actionindex(mdp::AdversarialDrivingMDP, a::Vector{Disturbance}) = get_actionindex(mdp.disturbance_model, a)
+POMDPs.actionindex(mdp::AdversarialDrivingMDP, a::Vector{Disturbance}) = Int32(get_actionindex(mdp.disturbance_model, a))
 
 # The default disturbance policy according to the disturbance models
 #TODO: Switch the "Function policy" to something that can get logpdf?

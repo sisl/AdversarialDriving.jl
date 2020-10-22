@@ -33,8 +33,8 @@ bv2 = vec_to_BlinkerVehicleControl([0.1, 0.5, -0.5, 0.5, 0.7])
 ## Test Convert_a functions
 
 sut_agent = BlinkerVehicleAgent(get_ped_vehicle(id=1, s=5., v=15.), TIDM(ped_TIDM_template, noisy_observations = true))
-adv_vehicle = BlinkerVehicleAgent(get_ped_vehicle(id=2, s=15., v=15.), TIDM(ped_TIDM_template), disturbance_model = [])
-adv_ped = NoisyPedestrianAgent(get_pedestrian(id=3, s=7., v=2.0), AdversarialPedestrian())
+adv_vehicle = BlinkerVehicleAgent(get_ped_vehicle(id=2, s=15., v=15.), TIDM(ped_TIDM_template), disturbance_model = Sampleable[])
+adv_ped = NoisyPedestrianAgent(get_pedestrian(id=3, s=7., v=2.0), AdversarialPedestrian(), disturbance_model = Sampleable[])
 mdp = AdversarialDrivingMDP(sut_agent, [adv_vehicle, adv_ped], ped_roadway, 0.1,)
 
 a = [bv, pc]
@@ -51,13 +51,13 @@ a2 = convert_a(Vector{Disturbance}, avec, mdp)
 bv1 = BlinkerVehicleAgent(left_straight(id=1), TIDM(Tint_TIDM_template))
 bv2 = BlinkerVehicleAgent(right_straight(id=2), TIDM(Tint_TIDM_template))
 advs = [bv1, bv2]
-dist = combine_discrete(advs)
-@test dist isa DiscreteActionModel
+d = combine_discrete(advs)
+@test d isa DiscreteActionModel
 
 # Test action construction, probabilities and indexing
-acts = dist.actions
+acts = d.actions
 for (a, i) in zip(acts, 1:length(acts))
-    @test get_actionindex(dist, a) == i
+    @test get_actionindex(d, a) == i
 end
 
 BV_ACTIONS = bv1.disturbance_model.actions
@@ -68,10 +68,16 @@ BV_ACTIONS = bv1.disturbance_model.actions
 @test acts[8] == [BV_ACTIONS[1][1], BV_ACTIONS[2][1]]
 @test acts[13] == [BV_ACTIONS[1][1], BV_ACTIONS[7][1]]
 
-action_prob = dist.probs
+action_prob = d.probs
 BV_ACTION_PROB = bv1.disturbance_model.probs
 @test isapprox(BV_ACTION_PROB[1], action_prob[1])
 aprob2 = action_prob[2]
 aprob3 = action_prob[3]
 @test isapprox(aprob3/aprob2, 10.)
+
+
+as = get_ped_actions()
+as.actions
+@test as.actions[2][1].da[1] == 1.
+@test as.probs[2] == 1e-2
 

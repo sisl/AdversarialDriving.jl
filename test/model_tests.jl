@@ -118,7 +118,7 @@ ped = NoisyPedestrian(roadway = ped_roadway, lane = 2, s = 2., v = 2., id = 1)
 ## Check the behavior of the actions for the Pedestrian Control
 simple_acc = PedestrianControl(a = (0.1, 0.1))
 acc_state = propagate(ped_entity, simple_acc, ped_roadway, 0.1)
-@test vel(acc_state) > vel(ped_entity)
+@test vel(acc_state) == vel(ped_entity) # Max pedestrian accel is 3
 @test posf(acc_state).s > posf(ped_entity).s
 @test posf(acc_state).t > posf(ped_entity).t
 @test posf(acc_state).ϕ > posf(ped_entity).ϕ
@@ -233,9 +233,8 @@ models = Dict(i => TIDM(Tint_TIDM_template) for i=1:5)
 nticks, timestep = 100, 0.1
 scenes = AutomotiveSimulator.simulate(scene, Tint_roadway, models, nticks, timestep)
 @test length(scenes) == nticks + 1
-
 # test end_of_road
-@test end_of_road(scenes[end][1], Tint_roadway, Inf)
+@test !end_of_road(scenes[end][1], Tint_roadway, Inf) # ego vehicle tracks the last vehicle to go straight
 @test end_of_road(scenes[end][2], Tint_roadway, Inf)
 @test end_of_road(scenes[end][3], Tint_roadway, Inf)
 @test end_of_road(scenes[end][4], Tint_roadway, Inf)

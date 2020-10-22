@@ -2,6 +2,7 @@ module AdversarialDriving
     using POMDPs
     using POMDPPolicies
     using POMDPSimulators
+    using POMDPModelTools
     using AutomotiveSimulator
     using AutomotiveVisualization
     using Distributions
@@ -31,7 +32,8 @@ module AdversarialDriving
     # MDP
     export Agent, BlinkerVehicleAgent, NoisyPedestrianAgent, id,
            AdversarialDrivingMDP, action_probability, step_scene,
-           agents, adversaries, model, sut, sutid, update_adversary!, DrivingMDP
+           agents, adversaries, model, sut, sutid, update_adversary!, DrivingMDP,
+           default_policy
     include("mdp.jl")
 
     # states
@@ -43,7 +45,8 @@ module AdversarialDriving
     export PEDESTRIAN_DISTURBANCE_DIM, PedestrianControl_to_vec, vec_to_PedestrianControl,
            BLINKERVEHICLE_DISTURBANCE_DIM, BlinkerVehicleControl_to_vec, vec_to_BlinkerVehicleControl,
            BV_ACTIONS, BV_ACTION_PROB, get_actions, get_actionindex, DiscreteActionModel,
-           combine_disturbance_models, combine_continuous, combine_discrete, get_bv_actions, get_rand_bv_actions
+           combine_disturbance_models, combine_continuous, combine_discrete,
+           get_bv_actions, get_rand_bv_actions, get_ped_actions
     include("actions.jl")
 
     #helpers
