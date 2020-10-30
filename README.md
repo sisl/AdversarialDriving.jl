@@ -14,6 +14,10 @@ Nominal Behavior             |  Failure Example
 ![](ped_crosswalk_nominal.gif)  |  ![](ped_crosswalk_failure.gif)
 ![](Tint_nominal.gif)  |  ![](Tint_failure.gif)
 
+## Installation
+Install with
+`import Pkg; Pkg.add(url="https://github.com/sisl/AdversarialDriving.jl")`
+
 
 ## Usage
 The `AdversarialDrivingMDP` is very versatile in its construction and supports the following arguments
