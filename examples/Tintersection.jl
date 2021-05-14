@@ -1,4 +1,5 @@
 using AdversarialDriving
+using AutomotiveSimulator
 using POMDPs, POMDPPolicies, POMDPSimulators
 using AutomotiveVisualization
 
