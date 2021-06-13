@@ -167,7 +167,7 @@ end
 
 # Define the wrapper for the adversarial pedestrian
 @with_kw mutable struct AdversarialPedestrian <: DriverModel{PedestrianControl}
-    idm::IntelligentDriverModel = IntelligentDriverModel(v_des= 1.0)
+    idm::LaneFollowingDriver = IntelligentDriverModel(v_des= 1.0)
     next_action::PedestrianControl = PedestrianControl()
     ignore_idm = false
 end
@@ -232,7 +232,7 @@ end
 
 # Define a driving model for a T-intersection IDM model
 @with_kw mutable struct TIDM <: DriverModel{BlinkerVehicleControl}
-    idm::IntelligentDriverModel = IntelligentDriverModel(v_des = 15.) # underlying idm
+    idm::LaneFollowingDriver = IntelligentDriverModel(v_des = 15.) # underlying idm
     noisy_observations::Bool = false # Whether or not this model gets noisy observations
     ttc_threshold = 7 # threshold through intersection
     next_action::BlinkerVehicleControl = BlinkerVehicleControl() # The next action that the model will do (for controllable vehicles)
@@ -399,6 +399,15 @@ end
 function time_to_cross_distance_const_acc(veh::Entity, idm::IntelligentDriverModel, ds::Float64)
     v = vel(veh)
     d = v^2 + 2*idm.a_max*ds
+    d < 0 && return 0 # We have already passed the point we are trying to get to
+    vf = min(idm.v_des, sqrt(d))
+    2*ds/(vf + v)
+end
+
+# Computes the time it takes to cover a given distance, assuming the current acceleration of the provided idm
+function time_to_cross_distance_const_acc(veh::Entity, idm::PrincetonDriver, ds::Float64)
+    v = vel(veh)
+    d = v^2 + 2*idm.a*ds
     d < 0 && return 0 # We have already passed the point we are trying to get to
     vf = min(idm.v_des, sqrt(d))
     2*ds/(vf + v)
